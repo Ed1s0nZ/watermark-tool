@@ -16,12 +16,12 @@ go build -o server ./cmd/server
 
 
 ## Web展示
-### 添加水印   
-<img src="https://github.com/Ed1s0nZ/watermark-tool/blob/main/image/%E6%B7%BB%E5%8A%A0%E6%B0%B4%E5%8D%B0.png" width="800px">  
+### 添加隐水印   
+<img src="https://github.com/Ed1s0nZ/watermark-tool/blob/main/image/%E6%B7%BB%E5%8A%A0%E9%9A%90%E6%B0%B4%E5%8D%B0.png" width="800px">  
 
 
-### 提取水印
-<img src="https://github.com/Ed1s0nZ/watermark-tool/blob/main/image/%E6%8F%90%E5%8F%96%E6%B0%B4%E5%8D%B0.png" width="800px">  
+### 提取隐水印
+<img src="https://github.com/Ed1s0nZ/watermark-tool/blob/main/image/%E6%8F%90%E5%8F%96%E9%9A%90%E6%B0%B4%E5%8D%B0.png" width="800px">  
 
 ## 主要特性
 
