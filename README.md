@@ -15,10 +15,10 @@ make build
 
 ## Web展示
 ### 添加水印   
-<img src="https://github.com/Ed1s0nZ/watermark-tool/blob/main/image/%E6%B7%BB%E5%8A%A0%E6%B0%B4%E5%8D%B0.png">  
+<img src="https://github.com/Ed1s0nZ/watermark-tool/blob/main/image/%E6%B7%BB%E5%8A%A0%E6%B0%B4%E5%8D%B0.png" width="800px">  
 
 ### 提取水印
-<img src="https://github.com/Ed1s0nZ/watermark-tool/blob/main/image/%E6%8F%90%E5%8F%96%E6%B0%B4%E5%8D%B0.png">  
+<img src="https://github.com/Ed1s0nZ/watermark-tool/blob/main/image/%E6%8F%90%E5%8F%96%E6%B0%B4%E5%8D%B0.png" width="800px">  
 
 ## 主要特性
 
@@ -89,6 +89,66 @@ make build
 2. 选择"添加隐水印"或"提取隐水印"功能
 3. 上传文件并输入隐水印文本（添加水印时）
 4. 等待处理完成后下载文件或查看提取结果
+
+### 命令行(CLI)使用
+
+除了Web界面外，本工具还提供命令行界面(CLI)，方便在脚本中使用或批处理文件。
+
+#### 构建CLI工具
+
+```bash
+# 构建CLI工具(同时也会构建Web服务器)
+make build
+
+# 或者只构建CLI工具
+make ./build/watermark-cli
+```
+
+构建完成后，CLI工具位于 `./build/watermark-cli`。
+
+#### CLI命令
+
+1. 添加水印
+
+```bash
+./build/watermark-cli add [输入文件] [输出文件] [水印文本]
+
+# 示例
+./build/watermark-cli add 文档.pdf 带水印.pdf "机密文件-请勿外传"
+```
+
+2. 提取水印
+
+```bash
+./build/watermark-cli extract [输入文件]
+
+# 示例
+./build/watermark-cli extract 带水印.pdf
+```
+
+3. 查看支持的文件类型
+
+```bash
+./build/watermark-cli types
+```
+
+#### 使用Makefile快捷命令
+
+项目提供了一些Makefile快捷命令方便使用：
+
+```bash
+# 运行CLI工具(显示帮助信息)
+make run-cli
+
+# 添加水印
+make add-watermark 文档.pdf 带水印.pdf "机密文件-请勿外传"
+
+# 提取水印
+make extract-watermark 带水印.pdf
+
+# 查看支持的文件类型
+make types
+```
 
 ### API接口使用
 
