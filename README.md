@@ -274,6 +274,7 @@ func extractWatermark(filePath string) (string, error) {
 	
 	return string(body), nil
 }
+```
 
 ## 🔒 隐水印技术原理
 
