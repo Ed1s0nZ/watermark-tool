@@ -374,6 +374,7 @@ function handleAddWatermark(event) {
     
     const fileInput = document.getElementById('addFileInput');
     const watermarkText = document.getElementById('watermarkText').value;
+    const showTimestamp = document.getElementById('addShowTimestampCheckbox').checked;
     
     // 验证
     if (!fileInput.files.length) {
@@ -487,7 +488,7 @@ function handleExtractWatermark(event) {
     event.preventDefault();
     
     const fileInput = document.getElementById('extractFileInput');
-    const showTimestamp = document.getElementById('showTimestampCheckbox').checked;
+    const showTimestamp = document.getElementById('extractShowTimestampCheckbox').checked;
     
     // 验证
     if (!fileInput.files.length) {
