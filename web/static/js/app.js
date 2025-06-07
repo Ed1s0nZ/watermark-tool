@@ -374,7 +374,6 @@ function handleAddWatermark(event) {
     
     const fileInput = document.getElementById('addFileInput');
     const watermarkText = document.getElementById('watermarkText').value;
-    const showTimestamp = document.getElementById('addShowTimestampCheckbox').checked;
     
     // 验证
     if (!fileInput.files.length) {
