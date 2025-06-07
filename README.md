@@ -4,6 +4,11 @@
 
 <img src="https://github.com/Ed1s0nZ/watermark-tool/blob/main/image/%E7%95%8C%E9%9D%A2.png" width="800px">  
 
+## 更新时间线
+- 2025.06.08
+  1. 🌟在提取水印时，增加了‘显示水印添加时间’的功能；
+  2. 解决了一个前端复选框的bug，该bug会导致选择‘显示水印添加时间’无法生效。
+
 ## 快速开始
 ```bash
 # 快速安装和启动
