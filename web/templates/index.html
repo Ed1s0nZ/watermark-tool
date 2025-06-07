@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>隐形文档水印工具</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.1/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/style.css">
+    <!-- 预加载字体图标 -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body class="light-mode">
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="container">
+            <div class="navbar-brand">
+                <span class="navbar-logo"><i class="fas fa-stamp"></i></span>
+                <span class="navbar-title">隐形文档水印工具</span>
+            </div>
+            <div class="navbar-menu">
+                <button id="themeToggle" class="theme-toggle" aria-label="切换主题">
+                    <i class="fas fa-sun"></i>
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- 页面头部 -->
+    <header class="hero is-gradient">
+        <div class="hero-body">
+            <div class="container has-text-centered">
+                <h1 class="title">
+                    安全、高效的隐形文档水印工具
+                </h1>
+                <h2 class="subtitle">
+                    轻松为您的文档添加不可见隐水印，保护文件安全
+                </h2>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主要内容区域 -->
+    <main class="section">
+        <div class="container">
+            <!-- 支持的文件类型提示 -->
+            <div class="formats-container">
+                <p class="format-title">支持的文件格式</p>
+                <div class="format-tags" id="supportedTypes">
+                    <!-- 这里将由JavaScript动态填充 -->
+                    <span class="format-tag">加载中...</span>
+                </div>
+            </div>
+            
+            <!-- 功能特点展示 -->
+            <div class="features-container">
+                <div class="feature-item">
+                    <div class="feature-icon">
+                        <i class="fas fa-lock"></i>
+                    </div>
+                    <h3 class="feature-title">安全加密</h3>
+                    <p class="feature-desc">使用强加密算法确保水印信息安全不被篡改</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">
+                        <i class="fas fa-eye-slash"></i>
+                    </div>
+                    <h3 class="feature-title">完全隐蔽</h3>
+                    <p class="feature-desc">水印完全隐形，对文档内容和外观零影响，肉眼无法识别</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">
+                        <i class="fas fa-shield-alt"></i>
+                    </div>
+                    <h3 class="feature-title">防篡改</h3>
+                    <p class="feature-desc">独特校验机制确保水印不被非法修改，增强安全性</p>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">
+                        <i class="fas fa-file-alt"></i>
+                    </div>
+                    <h3 class="feature-title">多格式支持</h3>
+                    <p class="feature-desc">支持PDF、Office文档、图片等多种常用文件格式</p>
+                </div>
+            </div>
+
+            <!-- 功能选项卡 -->
+            <div class="tabs-container">
+                <div class="tab-buttons">
+                    <button class="tab-btn active" data-tab="add-watermark">
+                        <span class="icon"><i class="fas fa-plus-circle"></i></span>
+                        <span>添加隐水印</span>
+                    </button>
+                    <button class="tab-btn" data-tab="extract-watermark">
+                        <span class="icon"><i class="fas fa-search"></i></span>
+                        <span>提取隐水印</span>
+                    </button>
+                </div>
+
+                <!-- 添加水印面板 -->
+                <div class="tab-content active" id="add-watermark">
+                    <div class="operation-card">
+                        <h3 class="operation-title">添加隐水印</h3>
+                        
+                        <form id="addWatermarkForm">
+                            <!-- 文件上传区域 -->
+                            <div class="upload-area" id="uploadArea"
+                                ondragover="event.preventDefault(); this.classList.add('dragover');" 
+                                ondragleave="this.classList.remove('dragover');" 
+                                ondrop="handleFileDrop(event, 'addFileInput')">
+                                <input id="addFileInput" type="file" style="display: none;" 
+                                    onchange="updateFileName(this, 'addSelectedFile')">
+                                <div id="addFileEmpty">
+                                    <div class="upload-icon">
+                                        <i class="fas fa-cloud-upload-alt"></i>
+                                    </div>
+                                    <p class="upload-text">拖拽文件到此处或<a class="upload-link" onclick="document.getElementById('addFileInput').click()">点击选择</a></p>
+                                    <p class="upload-formats">支持的文件格式加载中...</p>
+                                </div>
+                                <div id="addSelectedFile" style="display: none;">
+                                    <div class="selected-file-icon">
+                                        <i class="fas fa-file"></i>
+                                    </div>
+                                    <p class="file-name"></p>
+                                    <button type="button" class="remove-file-btn" onclick="resetFileInput('addFileInput', 'addSelectedFile', 'addFileEmpty')">
+                                        <span class="icon">
+                                            <i class="fas fa-times"></i>
+                                        </span>
+                                        <span>移除</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- 水印文本 -->
+                            <div class="watermark-text-field">
+                                <label for="watermarkText">隐水印文本</label>
+                                <input id="watermarkText" type="text" placeholder="输入要添加的隐水印内容" 
+                                    maxlength="100" oninput="updateWatermarkPreview()">
+                                <div class="text-counter">
+                                    <span id="charCount">0</span>/100
+                                </div>
+                            </div>
+
+                            <!-- 水印预览 -->
+                            <div class="watermark-preview-container">
+                                <p class="preview-title">隐水印内容预览 <span class="preview-note">(仅供参考，实际添加的水印不可见)</span></p>
+                                <div class="watermark-preview-box" id="watermarkPreviewBox">
+                                    <span id="watermarkPreview">无隐水印预览</span>
+                                </div>
+                                <div class="preview-options">
+                                    <button type="button" id="previewSizeBtn" class="preview-option-btn" data-size="normal">
+                                        <i class="fas fa-text-height"></i> 字号
+                                    </button>
+                                    <button type="button" id="previewAngleBtn" class="preview-option-btn" data-angle="0">
+                                        <i class="fas fa-sync"></i> 旋转
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- 提交按钮 -->
+                            <button id="addWatermarkBtn" type="submit" class="submit-btn add-btn">
+                                <span class="icon">
+                                    <i class="fas fa-stamp"></i>
+                                </span>
+                                <span>添加隐水印</span>
+                            </button>
+                        </form>
+
+                        <!-- 处理进度 -->
+                        <div id="addProgress" class="progress-area" style="display: none;">
+                            <div class="progress-bar-container">
+                                <div class="progress-bar">
+                                    <div class="progress-fill"></div>
+                                </div>
+                                <p class="progress-value">0%</p>
+                            </div>
+                        </div>
+
+                        <!-- 处理结果 -->
+                        <div id="addResult" class="result-area" style="display: none;"></div>
+                    </div>
+                </div>
+
+                <!-- 提取水印面板 -->
+                <div class="tab-content" id="extract-watermark" style="display: none;">
+                    <div class="operation-card">
+                        <h3 class="operation-title">提取隐水印</h3>
+                        
+                        <form id="extractWatermarkForm">
+                            <!-- 文件上传区域 -->
+                            <div class="upload-area" id="extractUploadArea"
+                                ondragover="event.preventDefault(); this.classList.add('dragover');" 
+                                ondragleave="this.classList.remove('dragover');" 
+                                ondrop="handleFileDrop(event, 'extractFileInput')">
+                                <input id="extractFileInput" type="file" style="display: none;" 
+                                    onchange="updateFileName(this, 'extractSelectedFile')">
+                                <div id="extractFileEmpty">
+                                    <div class="upload-icon">
+                                        <i class="fas fa-cloud-upload-alt"></i>
+                                    </div>
+                                    <p class="upload-text">拖拽文件到此处或<a class="upload-link" onclick="document.getElementById('extractFileInput').click()">点击选择</a></p>
+                                    <p class="upload-formats">支持的文件格式加载中...</p>
+                                </div>
+                                <div id="extractSelectedFile" style="display: none;">
+                                    <div class="selected-file-icon">
+                                        <i class="fas fa-file"></i>
+                                    </div>
+                                    <p class="file-name"></p>
+                                    <button type="button" class="remove-file-btn" onclick="resetFileInput('extractFileInput', 'extractSelectedFile', 'extractFileEmpty')">
+                                        <span class="icon">
+                                            <i class="fas fa-times"></i>
+                                        </span>
+                                        <span>移除</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- 提交按钮 -->
+                            <button id="extractWatermarkBtn" type="submit" class="submit-btn extract-btn">
+                                <span class="icon">
+                                    <i class="fas fa-search"></i>
+                                </span>
+                                <span>提取隐水印</span>
+                            </button>
+                        </form>
+
+                        <!-- 处理进度 -->
+                        <div id="extractProgress" class="progress-area" style="display: none;">
+                            <div class="progress-bar-container">
+                                <div class="progress-bar">
+                                    <div class="progress-fill"></div>
+                                </div>
+                                <p class="progress-value">0%</p>
+                            </div>
+                        </div>
+
+                        <!-- 提取结果 -->
+                        <div id="extractResult" class="result-area" style="display: none;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-info">
+                    <p class="footer-title">
+                        <i class="fas fa-stamp mr-2"></i> 隐形文档水印工具
+                    </p>
+                    <p class="footer-desc">
+                        安全地为您的文档添加或提取不可见隐水印，保护您的文件安全
+                    </p>
+                </div>
+                <div class="footer-formats">
+                    <p class="footer-formats-title">支持格式</p>
+                    <p id="footerSupportedTypes">加载中...</p>
+                </div>
+            </div>
+            <div class="footer-copyright">
+                <p>© 2025 隐形文档水印工具 | 保护您的文档安全</p>
+            </div>
+        </div>
+    </footer>
+
+    <!-- 引入外部JavaScript -->
+    <script src="/static/js/app.js"></script>
+</body>
+</html> 
