@@ -8,8 +8,12 @@ import (
 
 	"watermark-tool/internal/service"
 	_ "watermark-tool/internal/watermark/docx"
+	_ "watermark-tool/internal/watermark/jpg"
+	_ "watermark-tool/internal/watermark/odt"
 	_ "watermark-tool/internal/watermark/pdf"
+	_ "watermark-tool/internal/watermark/png"
 	_ "watermark-tool/internal/watermark/pptx"
+	_ "watermark-tool/internal/watermark/rtf"
 	_ "watermark-tool/internal/watermark/xlsx"
 )
 
