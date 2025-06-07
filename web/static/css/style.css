@@ -974,24 +974,53 @@ body {
 
 /* 选项复选框 */
 .option-checkbox {
-    margin: 15px 0;
+    margin: 18px 0;
+    padding: 10px;
+    border-radius: 6px;
+    transition: background-color 0.2s ease;
+}
+
+.option-checkbox:hover {
+    background-color: rgba(99, 102, 241, 0.05);
 }
 
 .checkbox-label {
     display: flex;
     align-items: center;
     cursor: pointer;
+    padding: 5px 0;
+    width: 100%;
 }
 
 .checkbox-label input[type="checkbox"] {
-    margin-right: 8px;
-    width: 16px;
-    height: 16px;
+    margin-right: 10px;
+    width: 20px;
+    height: 20px;
+    cursor: pointer;
+    accent-color: var(--primary-color);
 }
 
 .checkbox-text {
-    font-size: 14px;
+    font-size: 15px;
     color: #555;
+    font-weight: 500;
+}
+
+.checkbox-text i {
+    margin-right: 5px;
+    color: var(--primary-color);
+}
+
+.dark-mode .option-checkbox:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+}
+
+.dark-mode .checkbox-text {
+    color: #ddd;
+}
+
+.dark-mode .checkbox-text i {
+    color: var(--primary-light);
 }
 
 /* 水印时间戳显示区域 - 保留新样式 */
