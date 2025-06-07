@@ -6,9 +6,8 @@
 # 快速安装和启动
 git clone https://github.com/Ed1s0nZ/watermark-tool.git
 cd watermark-tool
-go mod download
-make build
-./build/server
+go build -o server ./cmd/server
+./server
 # 然后访问 http://localhost:8080
 ```
 
@@ -63,17 +62,17 @@ make build
 
 2. 安装依赖
    ```bash
-   go mod download
+   go mod tidy
    ```
 
 3. 构建项目
    ```bash
-   make build
+   go build -o server ./cmd/server
    ```
    
 4. 运行服务
    ```bash
-   ./build/server
+   ./server
    ```
 
 5. 访问Web界面
@@ -97,57 +96,36 @@ make build
 #### 构建CLI工具
 
 ```bash
-# 构建CLI工具(同时也会构建Web服务器)
-make build
-
-# 或者只构建CLI工具
-make ./build/watermark-cli
+# 构建CLI工具
+go build -o cli ./cmd/cli
 ```
 
-构建完成后，CLI工具位于 `./build/watermark-cli`。
+构建完成后，CLI工具位于 `./cli`。
 
 #### CLI命令
 
 1. 添加水印
 
 ```bash
-./build/watermark-cli add [输入文件] [输出文件] [水印文本]
+./cli add [输入文件] [输出文件] [水印文本]
 
 # 示例
-./build/watermark-cli add 文档.pdf 带水印.pdf "机密文件-请勿外传"
+./cli add 文档.pdf 带水印.pdf "机密文件-请勿外传"
 ```
 
 2. 提取水印
 
 ```bash
-./build/watermark-cli extract [输入文件]
+./cli extract [输入文件]
 
 # 示例
-./build/watermark-cli extract 带水印.pdf
+./cli extract 带水印.pdf
 ```
 
 3. 查看支持的文件类型
 
 ```bash
-./build/watermark-cli types
-```
-
-#### 使用Makefile快捷命令
-
-项目提供了一些Makefile快捷命令方便使用：
-
-```bash
-# 运行CLI工具(显示帮助信息)
-make run-cli
-
-# 添加水印
-make add-watermark 文档.pdf 带水印.pdf "机密文件-请勿外传"
-
-# 提取水印
-make extract-watermark 带水印.pdf
-
-# 查看支持的文件类型
-make types
+./cli types
 ```
 
 ### API接口使用
