@@ -104,16 +104,16 @@ func (w *ODTWatermarker) AddWatermark(inputFile, outputFile, watermarkText strin
 }
 
 // ExtractWatermark 从ODT文档中提取水印
-func (w *ODTWatermarker) ExtractWatermark(inputFile string) (string, error) {
+func (w *ODTWatermarker) ExtractWatermark(inputFile string) (string, string, error) {
 	// 检查输入文件是否存在
 	if _, err := os.Stat(inputFile); os.IsNotExist(err) {
-		return "", fmt.Errorf("输入文件不存在: %s", inputFile)
+		return "", "", fmt.Errorf("输入文件不存在: %s", inputFile)
 	}
 
 	// 打开ODT文件
 	reader, err := zip.OpenReader(inputFile)
 	if err != nil {
-		return "", fmt.Errorf("打开ODT文件失败: %w", err)
+		return "", "", fmt.Errorf("打开ODT文件失败: %w", err)
 	}
 	defer reader.Close()
 
@@ -123,20 +123,20 @@ func (w *ODTWatermarker) ExtractWatermark(inputFile string) (string, error) {
 		if strings.HasSuffix(file.Name, "watermark-data.xml") {
 			rc, err := file.Open()
 			if err != nil {
-				return "", fmt.Errorf("打开水印元数据文件失败: %w", err)
+				return "", "", fmt.Errorf("打开水印元数据文件失败: %w", err)
 			}
 			defer rc.Close()
 
 			watermarkData, err = ioutil.ReadAll(rc)
 			if err != nil {
-				return "", fmt.Errorf("读取水印元数据失败: %w", err)
+				return "", "", fmt.Errorf("读取水印元数据失败: %w", err)
 			}
 			break
 		}
 	}
 
 	if watermarkData == nil || len(watermarkData) == 0 {
-		return "", errors.New("未找到水印数据")
+		return "", "", errors.New("未找到水印数据")
 	}
 
 	// 解析XML数据
@@ -148,21 +148,21 @@ func (w *ODTWatermarker) ExtractWatermark(inputFile string) (string, error) {
 	}
 
 	if err := xml.Unmarshal(watermarkData, &watermarkInfo); err != nil {
-		return "", fmt.Errorf("解析水印元数据失败: %w", err)
+		return "", "", fmt.Errorf("解析水印元数据失败: %w", err)
 	}
 
 	// 解密水印数据
 	decryptedWatermark, err := decryptWatermark(watermarkInfo.Data)
 	if err != nil {
-		return "", fmt.Errorf("解密水印失败: %w", err)
+		return "", "", fmt.Errorf("解密水印失败: %w", err)
 	}
 
 	// 验证校验和
 	if generateChecksum(decryptedWatermark) != watermarkInfo.Checksum {
-		return "", errors.New("水印校验和不匹配，文件可能被篡改")
+		return "", "", errors.New("水印校验和不匹配，文件可能被篡改")
 	}
 
-	return decryptedWatermark, nil
+	return decryptedWatermark, watermarkInfo.Timestamp, nil
 }
 
 // 复制zip文件内容

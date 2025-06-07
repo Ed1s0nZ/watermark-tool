@@ -6,7 +6,8 @@ type Watermarker interface {
 	AddWatermark(inputFile, outputFile, watermarkText string) error
 
 	// ExtractWatermark 从文档中提取水印
-	ExtractWatermark(inputFile string) (string, error)
+	// 返回值: 水印文本, 时间戳, 错误
+	ExtractWatermark(inputFile string) (string, string, error)
 
 	// GetSupportedType 获取支持的文件类型
 	GetSupportedType() string

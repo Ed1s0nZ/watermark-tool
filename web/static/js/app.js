@@ -487,6 +487,7 @@ function handleExtractWatermark(event) {
     event.preventDefault();
     
     const fileInput = document.getElementById('extractFileInput');
+    const showTimestamp = document.getElementById('showTimestampCheckbox').checked;
     
     // 验证
     if (!fileInput.files.length) {
@@ -509,7 +510,7 @@ function handleExtractWatermark(event) {
     extractBtn.innerHTML = '<span class="icon"><i class="fas fa-spinner fa-spin"></i></span><span>处理中...</span>';
     
     // 发送请求
-    fetch('/api/extract-watermark', {
+    fetch(`/api/extract-watermark?show_timestamp=${showTimestamp}`, {
         method: 'POST',
         body: formData
     })
@@ -526,7 +527,7 @@ function handleExtractWatermark(event) {
         updateProgress(100, progressArea);
         
         // 处理成功响应
-        handleSuccessfulExtractWatermark(data.watermark);
+        handleSuccessfulExtractWatermark(data);
     })
     .catch(error => {
         handleFailedRequest(error.message || '提取水印失败，请重试');
@@ -540,12 +541,16 @@ function handleExtractWatermark(event) {
 /**
  * 处理成功提取水印
  */
-function handleSuccessfulExtractWatermark(watermarkText) {
+function handleSuccessfulExtractWatermark(data) {
     const resultArea = document.getElementById('extractResult');
     resultArea.style.display = 'block';
     
-    // 显示成功消息和水印内容
-    resultArea.innerHTML = `
+    // 获取水印文本和时间戳
+    const watermarkText = data.watermark;
+    const timestamp = data.timestamp;
+    
+    // 构建HTML内容
+    let htmlContent = `
         <div class="success-message">
             <div class="icon"><i class="fas fa-check-circle"></i></div>
             <div class="message">水印提取成功！</div>
@@ -555,6 +560,19 @@ function handleSuccessfulExtractWatermark(watermarkText) {
             <p>${watermarkText}</p>
         </div>
     `;
+    
+    // 如果有时间戳，添加时间戳信息
+    if (timestamp) {
+        htmlContent += `
+            <div class="watermark-timestamp">
+                <p class="watermark-timestamp-title">水印添加时间</p>
+                <p><i class="fas fa-calendar-alt"></i> ${timestamp}</p>
+            </div>
+        `;
+    }
+    
+    // 显示结果
+    resultArea.innerHTML = htmlContent;
     
     // 自动滚动到结果区域
     resultArea.scrollIntoView({ behavior: 'smooth' });

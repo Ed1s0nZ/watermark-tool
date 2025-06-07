@@ -134,21 +134,21 @@ func (w *JPGWatermarker) AddWatermark(inputFile, outputFile, watermarkText strin
 }
 
 // ExtractWatermark 从JPG图片中提取水印
-func (w *JPGWatermarker) ExtractWatermark(inputFile string) (string, error) {
+func (w *JPGWatermarker) ExtractWatermark(inputFile string) (string, string, error) {
 	// 检查输入文件是否存在
 	if _, err := os.Stat(inputFile); os.IsNotExist(err) {
-		return "", fmt.Errorf("输入文件不存在: %s", inputFile)
+		return "", "", fmt.Errorf("输入文件不存在: %s", inputFile)
 	}
 
 	// 读取图片文件
 	jpegData, err := os.ReadFile(inputFile)
 	if err != nil {
-		return "", fmt.Errorf("读取图片文件失败: %w", err)
+		return "", "", fmt.Errorf("读取图片文件失败: %w", err)
 	}
 
 	// 检查是否为JPEG文件
 	if len(jpegData) < 2 || jpegData[0] != 0xFF || jpegData[1] != 0xD8 {
-		return "", errors.New("无效的JPEG文件格式")
+		return "", "", errors.New("无效的JPEG文件格式")
 	}
 
 	// 查找注释段（标记FF FE）
@@ -172,33 +172,36 @@ func (w *JPGWatermarker) ExtractWatermark(inputFile string) (string, error) {
 	}
 
 	if commentData == nil {
-		return "", errors.New("未找到水印数据")
+		return "", "", errors.New("未找到水印数据")
 	}
 
 	// 解码Base64
 	metadataJSON, err := base64.StdEncoding.DecodeString(string(commentData))
 	if err != nil {
-		return "", fmt.Errorf("解码水印元数据失败: %w", err)
+		return "", "", fmt.Errorf("解码水印元数据失败: %w", err)
 	}
 
 	// 解析元数据
 	var metadata WatermarkMetadata
 	if err := json.Unmarshal(metadataJSON, &metadata); err != nil {
-		return "", fmt.Errorf("解析水印元数据失败: %w", err)
+		return "", "", fmt.Errorf("解析水印元数据失败: %w", err)
 	}
 
 	// 解密水印内容
 	watermarkText, err := decryptWatermark(metadata.Content)
 	if err != nil {
-		return "", fmt.Errorf("解密水印失败: %w", err)
+		return "", "", fmt.Errorf("解密水印失败: %w", err)
 	}
 
 	// 验证校验和
 	if generateChecksum(watermarkText) != metadata.Checksum {
-		return "", errors.New("水印校验和不匹配，文件可能被篡改")
+		return "", "", errors.New("水印校验和不匹配，文件可能被篡改")
 	}
 
-	return watermarkText, nil
+	// 将时间戳转换为字符串
+	timestamp := fmt.Sprintf("%d", metadata.Timestamp)
+
+	return watermarkText, timestamp, nil
 }
 
 // 加密水印文本

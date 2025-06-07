@@ -99,21 +99,21 @@ func (w *RTFWatermarker) AddWatermark(inputFile, outputFile, watermarkText strin
 }
 
 // ExtractWatermark 从RTF文档中提取水印
-func (w *RTFWatermarker) ExtractWatermark(inputFile string) (string, error) {
+func (w *RTFWatermarker) ExtractWatermark(inputFile string) (string, string, error) {
 	// 检查输入文件是否存在
 	if _, err := os.Stat(inputFile); os.IsNotExist(err) {
-		return "", fmt.Errorf("输入文件不存在: %s", inputFile)
+		return "", "", fmt.Errorf("输入文件不存在: %s", inputFile)
 	}
 
 	// 读取RTF文件内容
 	fileContent, err := ioutil.ReadFile(inputFile)
 	if err != nil {
-		return "", fmt.Errorf("读取RTF文件失败: %w", err)
+		return "", "", fmt.Errorf("读取RTF文件失败: %w", err)
 	}
 
 	// 验证RTF格式
 	if !bytes.HasPrefix(fileContent, []byte("{\\rtf1")) {
-		return "", errors.New("无效的RTF文件格式")
+		return "", "", errors.New("无效的RTF文件格式")
 	}
 
 	// 查找水印数据
@@ -121,7 +121,7 @@ func (w *RTFWatermarker) ExtractWatermark(inputFile string) (string, error) {
 	matches := re.FindSubmatch(fileContent)
 
 	if matches == nil || len(matches) < 4 {
-		return "", errors.New("未找到水印数据")
+		return "", "", errors.New("未找到水印数据")
 	}
 
 	// 获取时间戳、校验和和加密的水印内容
@@ -132,21 +132,21 @@ func (w *RTFWatermarker) ExtractWatermark(inputFile string) (string, error) {
 	// 解密水印内容
 	watermarkText, err := decryptWatermark(encryptedContent)
 	if err != nil {
-		return "", fmt.Errorf("解密水印失败: %w", err)
+		return "", "", fmt.Errorf("解密水印失败: %w", err)
 	}
 
 	// 验证校验和
 	if generateChecksum(watermarkText) != checksum {
-		return "", errors.New("水印校验和不匹配，文件可能被篡改")
+		return "", "", errors.New("水印校验和不匹配，文件可能被篡改")
 	}
 
 	// 验证时间戳（可选，此处仅确保它是有效的Unix时间戳）
 	_, err = fmt.Sscanf(timestamp, "%d", new(int64))
 	if err != nil {
-		return "", errors.New("水印时间戳无效")
+		return "", "", errors.New("水印时间戳无效")
 	}
 
-	return watermarkText, nil
+	return watermarkText, timestamp, nil
 }
 
 // prepareWatermarkData 准备用于插入RTF文档的水印数据

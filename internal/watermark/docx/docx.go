@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"watermark-tool/internal/watermark"
 )
@@ -112,26 +113,45 @@ func (d *DOCXWatermarker) AddWatermark(inputFile, outputFile, watermarkText stri
 	return nil
 }
 
-// ExtractWatermark 从Word文档中提取水印
-func (d *DOCXWatermarker) ExtractWatermark(inputFile string) (string, error) {
+// ExtractWatermark 从DOCX文档中提取水印
+func (d *DOCXWatermarker) ExtractWatermark(inputFile string) (string, string, error) {
 	// 创建临时目录
 	tempDir, err := os.MkdirTemp("", "docx-extract-*")
 	if err != nil {
-		return "", fmt.Errorf("创建临时目录失败: %w", err)
+		return "", "", fmt.Errorf("创建临时目录失败: %w", err)
 	}
 	defer os.RemoveAll(tempDir)
 
 	// 解压DOCX文件
 	err = unzipFile(inputFile, tempDir)
 	if err != nil {
-		return "", fmt.Errorf("解压DOCX文件失败: %w", err)
+		return "", "", fmt.Errorf("解压DOCX文件失败: %w", err)
 	}
+
+	// 默认时间戳
+	timestamp := time.Now().Format(time.RFC3339)
 
 	// 首先检查文档属性
 	corePropsPath := filepath.Join(tempDir, "docProps", "core.xml")
 	if _, err := os.Stat(corePropsPath); err == nil {
 		coreContent, err := os.ReadFile(corePropsPath)
 		if err == nil {
+			// 查找时间戳信息
+			timeStampPrefix := "TimeStamp:"
+			if tsIdx := bytes.Index(coreContent, []byte(timeStampPrefix)); tsIdx > 0 {
+				tsStart := tsIdx + len(timeStampPrefix)
+				tsEnd := tsStart
+				for i := tsStart; i < len(coreContent) && i < tsStart+50; i++ {
+					if coreContent[i] == '<' || coreContent[i] == ' ' {
+						tsEnd = i
+						break
+					}
+				}
+				if tsEnd > tsStart {
+					timestamp = string(coreContent[tsStart:tsEnd])
+				}
+			}
+
 			// 查找水印信息
 			watermarkPrefix := "Watermark:"
 			if idx := bytes.Index(coreContent, []byte(watermarkPrefix)); idx > 0 {
@@ -144,7 +164,7 @@ func (d *DOCXWatermarker) ExtractWatermark(inputFile string) (string, error) {
 					}
 				}
 				if end > start {
-					return string(coreContent[start:end]), nil
+					return string(coreContent[start:end]), timestamp, nil
 				}
 			}
 		}
@@ -154,7 +174,23 @@ func (d *DOCXWatermarker) ExtractWatermark(inputFile string) (string, error) {
 	documentPath := filepath.Join(tempDir, "word", "document.xml")
 	docContent, err := os.ReadFile(documentPath)
 	if err != nil {
-		return "", fmt.Errorf("读取document.xml失败: %w", err)
+		return "", "", fmt.Errorf("读取document.xml失败: %w", err)
+	}
+
+	// 查找时间戳标记
+	timeStampTagPrefix := "<!-- TimeStamp: "
+	if tsIdx := bytes.Index(docContent, []byte(timeStampTagPrefix)); tsIdx > 0 {
+		tsStart := tsIdx + len(timeStampTagPrefix)
+		tsEnd := tsStart
+		for i := tsStart; i < len(docContent) && i < tsStart+50; i++ {
+			if docContent[i] == '-' && i+2 < len(docContent) && docContent[i+1] == '-' && docContent[i+2] == '>' {
+				tsEnd = i
+				break
+			}
+		}
+		if tsEnd > tsStart {
+			timestamp = string(docContent[tsStart:tsEnd])
+		}
 	}
 
 	// 查找水印标记
@@ -169,11 +205,11 @@ func (d *DOCXWatermarker) ExtractWatermark(inputFile string) (string, error) {
 			}
 		}
 		if end > start {
-			return string(docContent[start:end]), nil
+			return string(docContent[start:end]), timestamp, nil
 		}
 	}
 
-	return "", fmt.Errorf("未找到水印信息")
+	return "", "", fmt.Errorf("未找到水印信息")
 }
 
 // GetSupportedType 返回支持的文件类型

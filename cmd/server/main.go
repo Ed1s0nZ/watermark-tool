@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -259,6 +260,9 @@ func main() {
 				return
 			}
 
+			// 是否显示时间戳
+			showTimestamp := c.DefaultQuery("show_timestamp", "false") == "true"
+
 			// 生成唯一的文件名
 			inputFilename := generateUniqueFilename(file.Filename)
 			inputPath := filepath.Join(tempDir, inputFilename)
@@ -272,13 +276,24 @@ func main() {
 
 			// 设置处理超时
 			var watermarkText string
+			var timestamp string
 			processDone := make(chan error, 1)
-			go func() {
-				// 提取水印
-				var err error
-				watermarkText, err = watermarkService.ExtractWatermark(inputPath)
-				processDone <- err
-			}()
+
+			if showTimestamp {
+				go func() {
+					// 提取水印和时间戳
+					var err error
+					watermarkText, timestamp, err = watermarkService.ExtractWatermarkWithTimestamp(inputPath)
+					processDone <- err
+				}()
+			} else {
+				go func() {
+					// 只提取水印
+					var err error
+					watermarkText, err = watermarkService.ExtractWatermark(inputPath)
+					processDone <- err
+				}()
+			}
 
 			// 等待处理完成或超时
 			select {
@@ -293,7 +308,16 @@ func main() {
 			}
 
 			// 返回提取的水印文本
-			c.JSON(http.StatusOK, gin.H{"watermark": watermarkText})
+			if showTimestamp {
+				// 格式化时间戳
+				formattedTimestamp := formatTimestamp(timestamp)
+				c.JSON(http.StatusOK, gin.H{
+					"watermark": watermarkText,
+					"timestamp": formattedTimestamp,
+				})
+			} else {
+				c.JSON(http.StatusOK, gin.H{"watermark": watermarkText})
+			}
 		})
 
 		// 获取支持的文件类型
@@ -360,4 +384,20 @@ func cleanupClientRequests() {
 			}
 		}
 	}
+}
+
+// formatTimestamp 格式化时间戳
+func formatTimestamp(timestamp string) string {
+	// 尝试解析为 Unix 时间戳（秒）
+	if unixTime, err := strconv.ParseInt(timestamp, 10, 64); err == nil {
+		return time.Unix(unixTime, 0).Format("2006-01-02 15:04:05")
+	}
+
+	// 尝试解析为 RFC3339 格式
+	if t, err := time.Parse(time.RFC3339, timestamp); err == nil {
+		return t.Format("2006-01-02 15:04:05")
+	}
+
+	// 无法解析，直接返回原始字符串
+	return timestamp
 }

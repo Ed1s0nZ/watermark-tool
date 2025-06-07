@@ -970,4 +970,52 @@ body {
 
 .dark-mode::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 255, 255, 0.3);
+}
+
+/* 选项复选框 */
+.option-checkbox {
+    margin: 15px 0;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    margin-right: 8px;
+    width: 16px;
+    height: 16px;
+}
+
+.checkbox-text {
+    font-size: 14px;
+    color: #555;
+}
+
+/* 水印时间戳显示区域 - 保留新样式 */
+.watermark-timestamp {
+    margin-top: 20px;
+    padding: 15px;
+    background-color: #f5f9ff;
+    border-radius: 5px;
+    border-left: 4px solid #2980b9;
+}
+
+.watermark-timestamp-title {
+    font-size: 16px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #2c3e50;
+}
+
+.watermark-timestamp i {
+    margin-right: 5px;
+    color: #2980b9;
+}
+
+.watermark-timestamp p {
+    color: #34495e;
+    font-weight: 500;
 } 

@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"watermark-tool/internal/watermark"
 )
@@ -125,26 +126,45 @@ func (p *PPTXWatermarker) AddWatermark(inputFile, outputFile, watermarkText stri
 	return nil
 }
 
-// ExtractWatermark 从PowerPoint中提取水印
-func (p *PPTXWatermarker) ExtractWatermark(inputFile string) (string, error) {
+// ExtractWatermark 从PPTX文档中提取水印
+func (p *PPTXWatermarker) ExtractWatermark(inputFile string) (string, string, error) {
 	// 创建临时目录
 	tempDir, err := os.MkdirTemp("", "pptx-extract-*")
 	if err != nil {
-		return "", fmt.Errorf("创建临时目录失败: %w", err)
+		return "", "", fmt.Errorf("创建临时目录失败: %w", err)
 	}
 	defer os.RemoveAll(tempDir)
 
 	// 解压PPTX文件
 	err = unzipFile(inputFile, tempDir)
 	if err != nil {
-		return "", fmt.Errorf("解压PPTX文件失败: %w", err)
+		return "", "", fmt.Errorf("解压PPTX文件失败: %w", err)
 	}
+
+	// 默认时间戳
+	timestamp := time.Now().Format(time.RFC3339)
 
 	// 首先检查文档属性
 	corePropsPath := filepath.Join(tempDir, "docProps", "core.xml")
 	if _, err := os.Stat(corePropsPath); err == nil {
 		coreContent, err := os.ReadFile(corePropsPath)
 		if err == nil {
+			// 查找时间戳信息
+			timeStampPrefix := "TimeStamp:"
+			if tsIdx := bytes.Index(coreContent, []byte(timeStampPrefix)); tsIdx > 0 {
+				tsStart := tsIdx + len(timeStampPrefix)
+				tsEnd := tsStart
+				for i := tsStart; i < len(coreContent) && i < tsStart+50; i++ {
+					if coreContent[i] == '<' || coreContent[i] == ' ' {
+						tsEnd = i
+						break
+					}
+				}
+				if tsEnd > tsStart {
+					timestamp = string(coreContent[tsStart:tsEnd])
+				}
+			}
+
 			// 查找水印信息
 			watermarkPrefix := "Watermark:"
 			if idx := bytes.Index(coreContent, []byte(watermarkPrefix)); idx > 0 {
@@ -157,31 +177,46 @@ func (p *PPTXWatermarker) ExtractWatermark(inputFile string) (string, error) {
 					}
 				}
 				if end > start {
-					return string(coreContent[start:end]), nil
+					return string(coreContent[start:end]), timestamp, nil
 				}
 			}
 		}
 	}
 
-	// 如果在文档属性中没找到，在幻灯片中查找
+	// 如果在文档属性中没找到，查找演示文稿注释
+	// 遍历所有幻灯片
 	slidesDir := filepath.Join(tempDir, "ppt", "slides")
 	if _, err := os.Stat(slidesDir); err == nil {
 		files, err := os.ReadDir(slidesDir)
 		if err == nil {
 			for _, file := range files {
-				if !file.IsDir() && strings.HasPrefix(file.Name(), "slide") && strings.HasSuffix(file.Name(), ".xml") {
+				if !file.IsDir() && strings.HasSuffix(file.Name(), ".xml") {
 					slidePath := filepath.Join(slidesDir, file.Name())
-
-					// 读取幻灯片内容
 					slideContent, err := os.ReadFile(slidePath)
 					if err != nil {
 						continue
 					}
 
-					// 查找水印注释
-					commentPrefix := "<!-- Watermark: "
-					if idx := bytes.Index(slideContent, []byte(commentPrefix)); idx > 0 {
-						start := idx + len(commentPrefix)
+					// 查找时间戳标记
+					timeStampTagPrefix := "<!-- TimeStamp: "
+					if tsIdx := bytes.Index(slideContent, []byte(timeStampTagPrefix)); tsIdx > 0 {
+						tsStart := tsIdx + len(timeStampTagPrefix)
+						tsEnd := tsStart
+						for i := tsStart; i < len(slideContent) && i < tsStart+50; i++ {
+							if slideContent[i] == '-' && i+2 < len(slideContent) && slideContent[i+1] == '-' && slideContent[i+2] == '>' {
+								tsEnd = i
+								break
+							}
+						}
+						if tsEnd > tsStart {
+							timestamp = string(slideContent[tsStart:tsEnd])
+						}
+					}
+
+					// 查找水印标记
+					watermarkTagPrefix := "<!-- Watermark: "
+					if idx := bytes.Index(slideContent, []byte(watermarkTagPrefix)); idx > 0 {
+						start := idx + len(watermarkTagPrefix)
 						end := start
 						for i := start; i < len(slideContent) && i < start+100; i++ {
 							if slideContent[i] == '-' && i+2 < len(slideContent) && slideContent[i+1] == '-' && slideContent[i+2] == '>' {
@@ -190,7 +225,7 @@ func (p *PPTXWatermarker) ExtractWatermark(inputFile string) (string, error) {
 							}
 						}
 						if end > start {
-							return string(slideContent[start:end]), nil
+							return string(slideContent[start:end]), timestamp, nil
 						}
 					}
 				}
@@ -198,7 +233,7 @@ func (p *PPTXWatermarker) ExtractWatermark(inputFile string) (string, error) {
 		}
 	}
 
-	return "", fmt.Errorf("未找到水印信息")
+	return "", "", fmt.Errorf("未找到水印信息")
 }
 
 // GetSupportedType 返回支持的文件类型

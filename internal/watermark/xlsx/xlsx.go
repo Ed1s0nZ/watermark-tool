@@ -334,17 +334,17 @@ func (x *XLSXWatermarker) AddWatermark(inputFile, outputFile, watermarkText stri
 }
 
 // ExtractWatermark 从XLSX文件中提取水印
-func (x *XLSXWatermarker) ExtractWatermark(inputFile string) (string, error) {
+func (x *XLSXWatermarker) ExtractWatermark(inputFile string) (string, string, error) {
 	// 读取XLSX文件
 	data, err := os.ReadFile(inputFile)
 	if err != nil {
-		return "", fmt.Errorf("读取XLSX文件失败: %w", err)
+		return "", "", fmt.Errorf("读取XLSX文件失败: %w", err)
 	}
 
 	// 打开ZIP文件
 	reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
-		return "", fmt.Errorf("解析XLSX文件失败: %w", err)
+		return "", "", fmt.Errorf("解析XLSX文件失败: %w", err)
 	}
 
 	// 在可能的位置查找水印
@@ -377,8 +377,8 @@ func (x *XLSXWatermarker) ExtractWatermark(inputFile string) (string, error) {
 			continue // 校验和不匹配，尝试下一个文件
 		}
 
-		return decryptedText, nil
+		return decryptedText, timestamp, nil
 	}
 
-	return "", errors.New("未在XLSX文件中找到有效的水印信息")
+	return "", "", errors.New("未在XLSX文件中找到有效的水印信息")
 }

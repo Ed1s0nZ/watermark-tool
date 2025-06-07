@@ -107,16 +107,16 @@ func (w *PNGWatermarker) AddWatermark(inputFile, outputFile, watermarkText strin
 }
 
 // ExtractWatermark 从PNG图片中提取水印
-func (w *PNGWatermarker) ExtractWatermark(inputFile string) (string, error) {
+func (w *PNGWatermarker) ExtractWatermark(inputFile string) (string, string, error) {
 	// 检查输入文件是否存在
 	if _, err := os.Stat(inputFile); os.IsNotExist(err) {
-		return "", fmt.Errorf("输入文件不存在: %s", inputFile)
+		return "", "", fmt.Errorf("输入文件不存在: %s", inputFile)
 	}
 
 	// 读取图片文件
 	pngData, err := os.ReadFile(inputFile)
 	if err != nil {
-		return "", fmt.Errorf("读取图片文件失败: %w", err)
+		return "", "", fmt.Errorf("读取图片文件失败: %w", err)
 	}
 
 	// 将二进制数据转换为字符串以便搜索水印标记
@@ -125,12 +125,12 @@ func (w *PNGWatermarker) ExtractWatermark(inputFile string) (string, error) {
 	// 查找水印信息
 	startIdx := strings.Index(dataStr, watermarkPrefix)
 	if startIdx == -1 {
-		return "", errors.New("未找到水印信息")
+		return "", "", errors.New("未找到水印信息")
 	}
 
 	endIdx := strings.Index(dataStr[startIdx:], watermarkSuffix)
 	if endIdx == -1 {
-		return "", errors.New("水印信息格式无效")
+		return "", "", errors.New("水印信息格式无效")
 	}
 
 	// 提取水印数据
@@ -138,17 +138,18 @@ func (w *PNGWatermarker) ExtractWatermark(inputFile string) (string, error) {
 
 	// 解析水印数据
 	parts := strings.Split(watermarkData, "|")
-	if len(parts) < 1 {
-		return "", errors.New("水印数据格式无效")
+	if len(parts) < 2 {
+		return "", "", errors.New("水印数据格式无效")
 	}
 
 	encodedText := parts[0]
+	timestamp := parts[1]
 
 	// 解码Base64编码的水印文本
 	decodedBytes, err := base64.StdEncoding.DecodeString(encodedText)
 	if err != nil {
-		return "", fmt.Errorf("解码水印信息失败: %w", err)
+		return "", "", fmt.Errorf("解码水印信息失败: %w", err)
 	}
 
-	return string(decodedBytes), nil
+	return string(decodedBytes), timestamp, nil
 }

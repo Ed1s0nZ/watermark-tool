@@ -105,16 +105,16 @@ func (p *PDFWatermarker) AddWatermark(inputFile, outputFile, watermarkText strin
 }
 
 // ExtractWatermark 从PDF文件中提取水印
-func (p *PDFWatermarker) ExtractWatermark(inputFile string) (string, error) {
+func (p *PDFWatermarker) ExtractWatermark(inputFile string) (string, string, error) {
 	// 读取PDF文件
 	data, err := os.ReadFile(inputFile)
 	if err != nil {
-		return "", fmt.Errorf("读取PDF文件失败: %w", err)
+		return "", "", fmt.Errorf("读取PDF文件失败: %w", err)
 	}
 
 	// 验证是否为PDF文件
 	if !bytes.HasPrefix(data, []byte("%PDF-")) {
-		return "", errors.New("不是有效的PDF文件")
+		return "", "", errors.New("不是有效的PDF文件")
 	}
 
 	// 使用正则表达式提取水印元数据
@@ -122,23 +122,24 @@ func (p *PDFWatermarker) ExtractWatermark(inputFile string) (string, error) {
 	matches := pattern.FindSubmatch(data)
 
 	if len(matches) < 2 {
-		return "", errors.New("未找到水印信息")
+		return "", "", errors.New("未找到水印信息")
 	}
 
 	// 解析水印元数据
 	watermarkData := string(matches[1])
 	parts := strings.Split(watermarkData, "|")
 	if len(parts) < 2 {
-		return "", errors.New("水印格式无效")
+		return "", "", errors.New("水印格式无效")
 	}
 
 	encodedText := parts[0]
+	timestamp := parts[1]
 
 	// 解码水印文本
 	decodedBytes, err := base64.StdEncoding.DecodeString(encodedText)
 	if err != nil {
-		return "", fmt.Errorf("解码水印失败: %w", err)
+		return "", "", fmt.Errorf("解码水印失败: %w", err)
 	}
 
-	return string(decodedBytes), nil
+	return string(decodedBytes), timestamp, nil
 }

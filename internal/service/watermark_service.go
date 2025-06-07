@@ -164,7 +164,7 @@ func (s *WatermarkService) ExtractWatermark(inputFile string) (string, error) {
 	startTime := time.Now()
 
 	// 提取水印
-	watermarkText, err := processor.ExtractWatermark(inputFile)
+	watermarkText, _, err := processor.ExtractWatermark(inputFile)
 
 	// 记录处理时间
 	elapsedTime := time.Since(startTime)
@@ -175,6 +175,40 @@ func (s *WatermarkService) ExtractWatermark(inputFile string) (string, error) {
 	}
 
 	return watermarkText, nil
+}
+
+// ExtractWatermarkWithTimestamp 从文档中提取水印和时间戳
+func (s *WatermarkService) ExtractWatermarkWithTimestamp(inputFile string) (string, string, error) {
+	// 验证输入文件
+	if err := s.validateFile(inputFile); err != nil {
+		return "", "", err
+	}
+
+	// 根据文件扩展名获取处理器
+	fileExt := strings.ToLower(filepath.Ext(inputFile))
+	fileExt = fileExt[1:] // 去掉扩展名前面的点号
+
+	// 获取对应的水印处理器
+	processor, ok := watermark.GetWatermarker(fileExt)
+	if !ok {
+		return "", "", fmt.Errorf("不支持的文件类型: %s", fileExt)
+	}
+
+	// 记录开始时间，用于性能分析
+	startTime := time.Now()
+
+	// 提取水印
+	watermarkText, timestamp, err := processor.ExtractWatermark(inputFile)
+
+	// 记录处理时间
+	elapsedTime := time.Since(startTime)
+	fmt.Printf("提取水印从文件 %s 耗时: %v\n", filepath.Base(inputFile), elapsedTime)
+
+	if err != nil {
+		return "", "", fmt.Errorf("提取水印失败: %w", err)
+	}
+
+	return watermarkText, timestamp, nil
 }
 
 // GetSupportedTypes 获取所有支持的文件类型
