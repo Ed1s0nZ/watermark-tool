@@ -4,7 +4,7 @@
 
 ```bash
 # 快速安装和启动
-git clone https://github.com/your-username/watermark-tool.git
+git clone https://github.com/Ed1s0nZ/watermark-tool.git
 cd watermark-tool
 go mod download
 make build
@@ -49,7 +49,7 @@ make build
 
 1. 克隆仓库
    ```bash
-   git clone https://github.com/your-username/watermark-tool.git
+   git clone https://github.com/Ed1s0nZ/watermark-tool.git
    cd watermark-tool
    ```
 
