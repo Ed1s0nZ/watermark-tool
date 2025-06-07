@@ -1,6 +1,6 @@
 # 隐形文档水印工具
 
-一个安全、高效的隐形文档水印解决方案，可为各类文档添加完全不可见的数字水印，同时支持水印提取和验证。基于Go语言开发，采用隐写技术，确保水印完全隐形且不影响原始文档的阅读体验和视觉效果。
+一个安全、高效的隐形文档水印解决方案，可为各类文档添加完全不可见的数字水印，同时支持水印提取和验证。基于Go语言开发，支持web和cli的方式使用，水印采用隐写技术，确保水印完全隐形且不影响原始文档的阅读体验和视觉效果。
 
 ```bash
 # 快速安装和启动
@@ -11,6 +11,14 @@ make build
 ./build/server
 # 然后访问 http://localhost:8080
 ```
+
+
+## Web展示
+### 添加水印   
+<img src="https://github.com/Ed1s0nZ/watermark-tool/blob/main/image/%E6%B7%BB%E5%8A%A0%E6%B0%B4%E5%8D%B0.png">  
+
+### 提取水印
+<img src="https://github.com/Ed1s0nZ/watermark-tool/blob/main/image/%E6%8F%90%E5%8F%96%E6%B0%B4%E5%8D%B0.png">  
 
 ## 主要特性
 
