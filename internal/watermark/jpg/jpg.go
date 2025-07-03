@@ -59,18 +59,27 @@ func (w *JPGWatermarker) AddWatermark(inputFile, outputFile, watermarkText strin
 	}
 	defer file.Close()
 
-	// 解码JPG图片
+	// 读取整个文件内容
+	jpegData, err := io.ReadAll(file)
+	if err != nil {
+		return fmt.Errorf("读取图片文件失败: %w", err)
+	}
+
+	// 检查是否为JPEG文件
+	if len(jpegData) < 2 || jpegData[0] != 0xFF || jpegData[1] != 0xD8 {
+		return errors.New("无效的JPEG文件格式")
+	}
+
+	// 解码JPG图片以验证其有效性
+	_, err = file.Seek(0, 0) // 重置文件指针到开始
+	if err != nil {
+		return fmt.Errorf("重置文件指针失败: %w", err)
+	}
+
 	img, _, err := image.Decode(file)
 	if err != nil {
 		return fmt.Errorf("解码图片失败: %w", err)
 	}
-
-	// 创建输出文件
-	output, err := os.Create(outputFile)
-	if err != nil {
-		return fmt.Errorf("创建输出文件失败: %w", err)
-	}
-	defer output.Close()
 
 	// 加密水印文本
 	encryptedText, err := encryptWatermark(watermarkText)
@@ -94,40 +103,59 @@ func (w *JPGWatermarker) AddWatermark(inputFile, outputFile, watermarkText strin
 	// 将元数据编码为Base64
 	metadataBase64 := base64.StdEncoding.EncodeToString(metadataJSON)
 
-	// 创建带有水印注释的缓冲区
-	var jpegBuffer bytes.Buffer
-	err = jpeg.Encode(&jpegBuffer, img, &jpeg.Options{Quality: 95})
-	if err != nil {
-		return fmt.Errorf("编码图片失败: %w", err)
-	}
-
-	// 提取JPEG头部（直到SOI标记之后）
-	jpegData := jpegBuffer.Bytes()
-	headerEnd := 2 // JPEG文件头始终是FF D8
-
-	// 构建EXIF或Adobe XMP注释段
-	// JPEG注释段以标记FF FE开始，然后是2字节长度（包括长度字段本身）
-	comment := []byte{0xFF, 0xFE}
-
 	// 注释内容前缀
 	prefix := "WATERMARK:"
 	commentContent := prefix + metadataBase64
 
-	// 注释长度（包括长度字段的2个字节）
-	commentLength := len(commentContent) + 2
-	comment = append(comment, byte(commentLength>>8), byte(commentLength&0xFF))
-	comment = append(comment, []byte(commentContent)...)
-
-	// 构建最终图片数据：头部 + 注释段 + 剩余数据
-	finalData := make([]byte, headerEnd+len(comment)+len(jpegData)-headerEnd)
-	copy(finalData[:headerEnd], jpegData[:headerEnd])
-	copy(finalData[headerEnd:], comment)
-	copy(finalData[headerEnd+len(comment):], jpegData[headerEnd:])
-
-	// 写入最终数据到输出文件
-	_, err = output.Write(finalData)
+	// 创建一个新的JPEG图像，保留原始图像的质量
+	var outputBuffer bytes.Buffer
+	err = jpeg.Encode(&outputBuffer, img, &jpeg.Options{Quality: 95})
 	if err != nil {
-		return fmt.Errorf("写入输出文件失败: %w", err)
+		return fmt.Errorf("编码图片失败: %w", err)
+	}
+
+	// 获取新编码的JPEG数据
+	newJpegData := outputBuffer.Bytes()
+
+	// 创建输出文件
+	output, err := os.Create(outputFile)
+	if err != nil {
+		return fmt.Errorf("创建输出文件失败: %w", err)
+	}
+	defer output.Close()
+
+	// 写入JPEG文件头 (FF D8)
+	_, err = output.Write(newJpegData[:2])
+	if err != nil {
+		return fmt.Errorf("写入JPEG头部失败: %w", err)
+	}
+
+	// 构建注释段
+	// JPEG注释段以标记FF FE开始，然后是2字节长度（包括长度字段本身）
+	commentLength := len(commentContent) + 2 // +2 是长度字段自身
+
+	// 检查长度是否超过最大值（2字节能表示的最大值）
+	if commentLength > 65535 {
+		return fmt.Errorf("水印数据太长，无法添加到JPEG注释中")
+	}
+
+	// 写入注释标记和长度
+	commentHeader := []byte{0xFF, 0xFE, byte(commentLength >> 8), byte(commentLength & 0xFF)}
+	_, err = output.Write(commentHeader)
+	if err != nil {
+		return fmt.Errorf("写入注释头部失败: %w", err)
+	}
+
+	// 写入注释内容
+	_, err = output.Write([]byte(commentContent))
+	if err != nil {
+		return fmt.Errorf("写入注释内容失败: %w", err)
+	}
+
+	// 写入剩余的JPEG数据（跳过原始的FF D8头部）
+	_, err = output.Write(newJpegData[2:])
+	if err != nil {
+		return fmt.Errorf("写入JPEG数据失败: %w", err)
 	}
 
 	return nil
@@ -151,21 +179,57 @@ func (w *JPGWatermarker) ExtractWatermark(inputFile string) (string, string, err
 		return "", "", errors.New("无效的JPEG文件格式")
 	}
 
+	// 打印调试信息
+	fmt.Printf("JPEG文件大小: %d 字节\n", len(jpegData))
+
 	// 查找注释段（标记FF FE）
 	var commentData []byte
-	i := 2
+	i := 2 // 跳过文件头的FF D8
 	for i < len(jpegData)-4 {
-		if jpegData[i] == 0xFF && jpegData[i+1] == 0xFE {
-			// 读取注释长度（包括长度字段自身的2字节）
-			length := int(jpegData[i+2])<<8 | int(jpegData[i+3])
-			if i+4+length-2 <= len(jpegData) {
-				comment := string(jpegData[i+4 : i+2+length])
-				if strings.HasPrefix(comment, "WATERMARK:") {
-					commentData = []byte(strings.TrimPrefix(comment, "WATERMARK:"))
-					break
+		// 检查是否为段标记（所有段都以FF开始）
+		if jpegData[i] == 0xFF {
+			segmentType := jpegData[i+1]
+			fmt.Printf("在位置 %d 找到段标记: 0x%02X\n", i, segmentType)
+
+			// 检查是否为注释段 (0xFE)
+			if segmentType == 0xFE {
+				// 读取注释长度（包括长度字段自身的2字节）
+				length := int(jpegData[i+2])<<8 | int(jpegData[i+3])
+				fmt.Printf("注释段长度: %d 字节\n", length)
+
+				if i+4+length-2 <= len(jpegData) {
+					// 提取注释内容（不包括长度字段）
+					comment := string(jpegData[i+4 : i+2+length])
+					fmt.Printf("注释内容前缀: %s\n", comment[:min(20, len(comment))])
+
+					if strings.HasPrefix(comment, "WATERMARK:") {
+						commentData = []byte(strings.TrimPrefix(comment, "WATERMARK:"))
+						fmt.Printf("找到水印数据，长度: %d 字节\n", len(commentData))
+						break
+					}
+				}
+				// 跳到下一个段
+				i += 2 + length
+			} else if segmentType >= 0xE0 && segmentType <= 0xEF {
+				// APP段 (APP0-APP15)
+				if i+4 < len(jpegData) {
+					length := int(jpegData[i+2])<<8 | int(jpegData[i+3])
+					i += 2 + length
+				} else {
+					i += 2
+				}
+			} else if segmentType == 0xDA {
+				// 扫描行开始 (SOS)，之后是图像数据，不再有元数据段
+				break
+			} else {
+				// 其他段，读取长度并跳过
+				if i+4 < len(jpegData) {
+					length := int(jpegData[i+2])<<8 | int(jpegData[i+3])
+					i += 2 + length
+				} else {
+					i += 2
 				}
 			}
-			i += 2 + length
 		} else {
 			i++
 		}
@@ -199,33 +263,49 @@ func (w *JPGWatermarker) ExtractWatermark(inputFile string) (string, string, err
 	}
 
 	// 将时间戳转换为字符串
-	timestamp := fmt.Sprintf("%d", metadata.Timestamp)
+	timestamp := time.Unix(metadata.Timestamp, 0).Format(time.RFC3339)
 
 	return watermarkText, timestamp, nil
+}
+
+// min 返回两个整数中的较小值
+func min(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
 
 // 加密水印文本
 func encryptWatermark(text string) (string, error) {
 	// 定义密钥（实际应用中应从安全来源获取）
-	key := []byte("watermark-security-key-for-encryption")
+	// 使用固定长度的密钥（32字节/256位）
+	originalKey := "watermark-security-key-for-encryption"
+	// 确保密钥长度为32字节（AES-256）
+	key := make([]byte, 32)
+	// 复制原始密钥，如果原始密钥较短则重复使用，较长则截断
+	for i := 0; i < 32; i++ {
+		key[i] = originalKey[i%len(originalKey)]
+	}
+
 	plaintext := []byte(text)
 
 	// 创建一个新的AES加密块
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("创建AES加密块失败: %w", err)
 	}
 
 	// 创建一个新的GCM模式
 	aesGCM, err := cipher.NewGCM(block)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("创建GCM模式失败: %w", err)
 	}
 
 	// 创建随机数作为nonce
 	nonce := make([]byte, aesGCM.NonceSize())
 	if _, err = io.ReadFull(rand.Reader, nonce); err != nil {
-		return "", err
+		return "", fmt.Errorf("生成nonce失败: %w", err)
 	}
 
 	// 加密数据
@@ -238,24 +318,31 @@ func encryptWatermark(text string) (string, error) {
 // 解密水印文本
 func decryptWatermark(encryptedText string) (string, error) {
 	// 定义密钥（必须与加密时使用的相同）
-	key := []byte("watermark-security-key-for-encryption")
+	// 使用固定长度的密钥（32字节/256位）
+	originalKey := "watermark-security-key-for-encryption"
+	// 确保密钥长度为32字节（AES-256）
+	key := make([]byte, 32)
+	// 复制原始密钥，如果原始密钥较短则重复使用，较长则截断
+	for i := 0; i < 32; i++ {
+		key[i] = originalKey[i%len(originalKey)]
+	}
 
 	// 解码base64字符串
 	ciphertext, err := base64.StdEncoding.DecodeString(encryptedText)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("base64解码失败: %w", err)
 	}
 
 	// 创建一个新的AES加密块
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("创建AES加密块失败: %w", err)
 	}
 
 	// 创建一个新的GCM模式
 	aesGCM, err := cipher.NewGCM(block)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("创建GCM模式失败: %w", err)
 	}
 
 	// 获取nonce大小
@@ -272,7 +359,7 @@ func decryptWatermark(encryptedText string) (string, error) {
 	// 解密数据
 	plaintext, err := aesGCM.Open(nil, nonce, ciphertext, nil)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("解密数据失败: %w", err)
 	}
 
 	return string(plaintext), nil
