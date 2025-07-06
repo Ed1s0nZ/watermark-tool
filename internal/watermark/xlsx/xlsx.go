@@ -391,155 +391,118 @@ func extractWatermarkFromFile(r *zip.Reader, fileName string) (string, error) {
 
 // AddWatermark 为XLSX文件添加水印
 func (x *XLSXWatermarker) AddWatermark(inputFile, outputFile, watermarkText string) error {
-	// 读取源XLSX文件
 	data, err := os.ReadFile(inputFile)
 	if err != nil {
 		return fmt.Errorf("读取XLSX文件失败: %w", err)
 	}
-
-	// 打开ZIP文件
 	reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
 		return fmt.Errorf("解析XLSX文件失败: %w", err)
 	}
-
-	// 创建输出缓冲区
 	var outputBuffer bytes.Buffer
 	writer := zip.NewWriter(&outputBuffer)
 
-	// 创建加密的水印数据
 	watermarkData, checksum, err := createWatermarkData(watermarkText)
 	if err != nil {
 		return fmt.Errorf("创建水印数据失败: %w", err)
 	}
-
-	// 打印水印数据，用于调试
 	fmt.Printf("创建的水印数据: %s\n", watermarkData)
 	fmt.Printf("校验和: %s\n", checksum)
 
-	// 处理所有文件
 	processedFiles := make(map[string]bool)
-
-	// 使用更保守的方法：只在docProps/app.xml中添加水印（如果存在）
-	// 这个文件通常不会影响Excel/WPS的核心功能
-	const appPropsFile = "docProps/app.xml"
-
-	// 尝试找到app.xml文件
-	var appFile *zip.File
+	const customPropsFile = "docProps/custom.xml"
+	var customFile *zip.File
 	for _, f := range reader.File {
-		if f.Name == appPropsFile {
-			appFile = f
+		if f.Name == customPropsFile {
+			customFile = f
 			break
 		}
 	}
-
-	// 如果找到app.xml，则在其中添加水印
-	if appFile != nil {
-		rc, err := appFile.Open()
+	if customFile != nil {
+		rc, err := customFile.Open()
 		if err == nil {
 			content, err := io.ReadAll(rc)
 			rc.Close()
-
 			if err == nil {
-				// 在Properties标签结束前添加自定义属性
+				// 插入或更新自定义属性
 				endTag := "</Properties>"
-				if idx := bytes.LastIndex(content, []byte(endTag)); idx > 0 {
-					// 添加自定义属性，确保XML格式正确
-					// 使用CDATA包装水印数据，防止XML特殊字符问题
-					customProp := fmt.Sprintf("<CustomDocumentProperties><Property name=\"WM\" type=\"string\"><![CDATA[%s]]></Property></CustomDocumentProperties>", watermarkData)
-
-					modifiedContent := append(content[:idx], []byte(customProp)...)
+				propertyPattern := regexp.MustCompile(`<property[^>]*name="watermark"[^>]*>.*?</property>`) // 匹配已有水印属性
+				newProp := fmt.Sprintf(`<property fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}" pid="2" name="watermark" type="string">%s</property>`, watermarkData)
+				var modifiedContent []byte
+				if propertyPattern.Match(content) {
+					modifiedContent = propertyPattern.ReplaceAll(content, []byte(newProp))
+				} else if idx := bytes.LastIndex(content, []byte(endTag)); idx > 0 {
+					modifiedContent = append(content[:idx], []byte(newProp)...)
 					modifiedContent = append(modifiedContent, content[idx:]...)
-
-					// 写入修改后的文件
-					w, err := writer.CreateHeader(&appFile.FileHeader)
-					if err == nil {
-						w.Write(modifiedContent)
-						processedFiles[appPropsFile] = true
-					}
+				} else {
+					modifiedContent = content
+				}
+				w, err := writer.CreateHeader(&customFile.FileHeader)
+				if err == nil {
+					w.Write(modifiedContent)
+					processedFiles[customPropsFile] = true
 				}
 			}
 		}
-	}
-
-	// 如果app.xml不存在或处理失败，尝试创建一个自定义文件
-	if !processedFiles[appPropsFile] {
-		customFileName := "xl/customWatermark.xml"
+	} else {
+		// custom.xml 不存在，创建一个
 		header := &zip.FileHeader{
-			Name:   customFileName,
+			Name:   customPropsFile,
 			Method: zip.Deflate,
 		}
 		header.SetModTime(time.Now())
-
 		w, err := writer.CreateHeader(header)
 		if err == nil {
-			// 使用标准XML格式，并用CDATA包装水印数据
-			customContent := fmt.Sprintf("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?><watermark><![CDATA[%s]]></watermark>", watermarkData)
+			customContent := fmt.Sprintf(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/custom-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">%s</Properties>`,
+				fmt.Sprintf(`<property fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}" pid="2" name="watermark" type="string">%s</property>`, watermarkData))
 			w.Write([]byte(customContent))
-			processedFiles[customFileName] = true
+			processedFiles[customPropsFile] = true
 		}
 	}
-
 	// 复制其余文件
 	for _, file := range reader.File {
 		if processedFiles[file.Name] {
-			continue // 跳过已处理的文件
+			continue
 		}
-
-		// 打开原始文件
 		rc, err := file.Open()
 		if err != nil {
 			return fmt.Errorf("打开XLSX内部文件失败: %w", err)
 		}
-
-		// 创建新的ZIP条目
 		w, err := writer.CreateHeader(&file.FileHeader)
 		if err != nil {
 			rc.Close()
 			return fmt.Errorf("创建ZIP条目失败: %w", err)
 		}
-
-		// 复制内容
 		_, err = io.Copy(w, rc)
 		rc.Close()
 		if err != nil {
 			return fmt.Errorf("复制ZIP条目失败: %w", err)
 		}
 	}
-
-	// 关闭ZIP写入器
 	err = writer.Close()
 	if err != nil {
 		return fmt.Errorf("关闭ZIP写入器失败: %w", err)
 	}
-
-	// 写入输出文件
 	err = os.WriteFile(outputFile, outputBuffer.Bytes(), 0644)
 	if err != nil {
 		return fmt.Errorf("写入输出文件失败: %w", err)
 	}
-
 	return nil
 }
 
 // ExtractWatermark 从XLSX文件中提取水印
 func (x *XLSXWatermarker) ExtractWatermark(inputFile string) (string, string, error) {
-	// 读取XLSX文件
 	data, err := os.ReadFile(inputFile)
 	if err != nil {
 		return "", "", fmt.Errorf("读取XLSX文件失败: %w", err)
 	}
-
-	// 打开ZIP文件
 	reader, err := zip.NewReader(bytes.NewReader(data), int64(len(data)))
 	if err != nil {
 		return "", "", fmt.Errorf("解析XLSX文件失败: %w", err)
 	}
-
-	// 首先检查自定义水印文件
-	customFileName := "xl/customWatermark.xml"
+	const customPropsFile = "docProps/custom.xml"
 	for _, f := range reader.File {
-		if f.Name == customFileName {
+		if f.Name == customPropsFile {
 			rc, err := f.Open()
 			if err != nil {
 				continue
@@ -549,81 +512,16 @@ func (x *XLSXWatermarker) ExtractWatermark(inputFile string) (string, string, er
 			if err != nil {
 				continue
 			}
-
-			fmt.Printf("找到自定义水印文件: %s\n", customFileName)
-
-			// 提取水印数据，考虑CDATA包装
-			var watermarkData string
-
-			// 尝试提取CDATA中的内容
-			cdataPattern := regexp.MustCompile(`<watermark><!\[CDATA\[(.*?)\]\]></watermark>`)
-			cdataMatches := cdataPattern.FindSubmatch(content)
-			if len(cdataMatches) >= 2 {
-				watermarkData = string(cdataMatches[1])
-				fmt.Printf("从CDATA中提取的水印数据: %s\n", watermarkData)
-				return parseWatermarkData(watermarkData)
-			}
-
-			// 如果没有CDATA，尝试常规提取
-			pattern := regexp.MustCompile(`<watermark>(.*?)</watermark>`)
-			matches := pattern.FindSubmatch(content)
-			if len(matches) >= 2 {
-				watermarkData = string(matches[1])
-				fmt.Printf("从XML中提取的水印数据: %s\n", watermarkData)
-				return parseWatermarkData(watermarkData)
-			}
-		}
-	}
-
-	// 检查app.xml中的水印
-	const appPropsFile = "docProps/app.xml"
-	for _, f := range reader.File {
-		if f.Name == appPropsFile {
-			rc, err := f.Open()
-			if err != nil {
-				continue
-			}
-			content, err := io.ReadAll(rc)
-			rc.Close()
-			if err != nil {
-				continue
-			}
-
-			fmt.Printf("检查app.xml文件中的水印\n")
-
-			// 尝试提取CDATA中的内容
-			cdataPattern := regexp.MustCompile(`<Property name="WM" type="string"><!\[CDATA\[(.*?)\]\]></Property>`)
-			cdataMatches := cdataPattern.FindSubmatch(content)
-			if len(cdataMatches) >= 2 {
-				watermarkData := string(cdataMatches[1])
-				fmt.Printf("从CDATA中提取的水印数据: %s\n", watermarkData)
-				return parseWatermarkData(watermarkData)
-			}
-
-			// 如果没有CDATA，尝试常规提取
-			pattern := regexp.MustCompile(`<Property name="WM" type="string">(.*?)</Property>`)
+			// 提取自定义属性
+			pattern := regexp.MustCompile(`<property[^>]*name="watermark"[^>]*>(.*?)</property>`)
 			matches := pattern.FindSubmatch(content)
 			if len(matches) >= 2 {
 				watermarkData := string(matches[1])
-				fmt.Printf("从XML中提取的水印数据: %s\n", watermarkData)
 				return parseWatermarkData(watermarkData)
 			}
 		}
 	}
-
-	// 如果新方法未找到水印，尝试旧方法（向后兼容）
-	fmt.Printf("尝试旧方法提取水印\n")
-	watermarkFiles := []string{corePropsFile, workbookFile, sharedStringsFile}
-	for _, fileName := range watermarkFiles {
-		watermarkData, err := extractWatermarkFromFile(reader, fileName)
-		if err != nil || watermarkData == "" {
-			continue // 如果此文件中没有找到水印，继续查找其他文件
-		}
-
-		fmt.Printf("从旧位置提取的水印数据: %s\n", watermarkData)
-		return parseWatermarkData(watermarkData)
-	}
-
+	// 兼容旧方法
 	return "", "", errors.New("未在XLSX文件中找到有效的水印信息")
 }
 
