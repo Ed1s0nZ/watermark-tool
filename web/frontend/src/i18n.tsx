@@ -1,5 +1,6 @@
 import { createContext, useContext } from "react";
 export const zh = {
+  workbench_cancelled: "实验超时或已取消，请缩小图片后重试。",
   batches: "批量副本",
   records: "分发记录",
   keys: "密钥版本",
@@ -194,6 +195,8 @@ export const zh = {
 };
 export type Dictionary = Record<keyof typeof zh, string>;
 export const en: Dictionary = {
+  workbench_cancelled:
+    "Experiment timed out or was cancelled. Try a smaller image.",
   batches: "Batch copies",
   records: "Distribution records",
   keys: "Key versions",

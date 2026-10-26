@@ -31,6 +31,9 @@ import { useText } from "./i18n";
 import { Preferences, PreferencesProps } from "./Preferences";
 import { Dashboard } from "./Dashboard";
 import { WatermarkPage } from "./WatermarkPage";
+import { LabPage } from "./LabPage";
+import { DualPage } from "./DualPage";
+import { useWorkbenchText } from "./workbenchText";
 import { Settings } from "./Settings";
 import { BatchPage } from "./BatchPage";
 import { RecordsPage } from "./RecordsPage";
@@ -38,6 +41,8 @@ import { KeysPage } from "./KeysPage";
 import { ErrorNotice } from "./ErrorNotice";
 const pages = [
   "overview",
+  "lab",
+  "dual",
   "add",
   "extract",
   "batches",
@@ -56,6 +61,7 @@ export function Shell({
   ...preferences
 }: PreferencesProps & { user: User; onLogout: () => Promise<void> }) {
   const t = useText();
+  const wt = useWorkbenchText();
   const contentRef = useRef<HTMLDivElement>(null);
   const { token } = theme.useToken();
   const [page, setPage] = useState<Page>(currentPage);
@@ -123,6 +129,12 @@ export function Shell({
       key: "records",
       icon: <DatabaseOutlined aria-hidden="true" />,
       label: t.records,
+    },
+    { key: "lab", icon: <ScanOutlined aria-hidden="true" />, label: wt.lab },
+    {
+      key: "dual",
+      icon: <FileProtectOutlined aria-hidden="true" />,
+      label: wt.dual,
     },
     { key: "keys", icon: <KeyOutlined aria-hidden="true" />, label: t.keys },
     {
@@ -229,7 +241,9 @@ export function Shell({
               icon={<MenuOutlined aria-hidden="true" />}
               onClick={() => setMobile(true)}
             />
-            <Typography.Text strong>{t[page]}</Typography.Text>
+            <Typography.Text strong>
+              {page === "lab" ? wt.lab : page === "dual" ? wt.dual : t[page]}
+            </Typography.Text>
           </Space>
           <div className="topbar-actions">
             <Preferences {...preferences} />
@@ -306,6 +320,8 @@ export function Shell({
             <div hidden={page !== "keys"}>
               <KeysPage active={page === "keys"} />
             </div>
+            {page === "lab" && <LabPage active />}
+            {page === "dual" && <DualPage active />}
             <div hidden={page !== "settings"}>
               <Settings username={user.username} {...preferences} />
             </div>

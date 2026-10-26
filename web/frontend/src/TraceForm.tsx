@@ -8,6 +8,7 @@ import {
   Space,
   Typography,
 } from "antd";
+import { ReportVerifier } from "./Reports";
 import { api } from "./api";
 import { ErrorNotice } from "./ErrorNotice";
 import { useText } from "./i18n";
@@ -63,7 +64,11 @@ export function TraceForm({ active }: { active: boolean }) {
           style={{ width: "100%", maxWidth: 440 }}
           value={key}
           disabled={busy}
-          onChange={setKey}
+          onChange={(v) => {
+            setKey(v);
+            setResult(undefined);
+            setError(undefined);
+          }}
           options={[
             { value: "", label: t.autoKeys },
             ...keys.map((k) => ({
@@ -81,6 +86,7 @@ export function TraceForm({ active }: { active: boolean }) {
         >
           {t.traceAction}
         </Button>
+        <ReportVerifier file={file} keyID={key} disabled={busy} />
         {result && (
           <>
             <Alert

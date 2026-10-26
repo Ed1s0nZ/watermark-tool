@@ -188,6 +188,7 @@ func main() {
 	})
 
 	registerPlatform(api, managed, tempDir)
+	registerWorkbench(api, managed, tempDir)
 	{
 		// 添加水印API
 		api.POST("/add-watermark", RateLimitMiddleware(), func(c *gin.Context) {

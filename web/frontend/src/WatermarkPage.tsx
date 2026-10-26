@@ -22,6 +22,7 @@ import {
   DownloadOutlined,
   InboxOutlined,
 } from "@ant-design/icons";
+import { ReportVerifier } from "./Reports";
 import { api } from "./api";
 import { useText } from "./i18n";
 import type { CopyRecord } from "./platform";
@@ -289,6 +290,9 @@ export function WatermarkPage({
               </Space>
             </Form>
           </Card>
+          {kind === "extract" && blindMode && (
+            <ReportVerifier file={file} disabled={busy} />
+          )}
           <Card
             title={kind === "add" ? t.success : t.result}
             style={{ marginTop: 24 }}
