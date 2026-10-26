@@ -30,3 +30,7 @@
 - 原图与 baseline-input.jpg 初始副本 SHA-256 均为 c160fa1bc488af7f48984bd627bc5cbc5a20b98eaaf11af92e99a206b376252d。
 - 原图只读，副本可写；尚未执行嵌入或攻击测试。
 - git diff --check 通过。需求文档状态为 Pending Confirmation。
+
+## 确认与设计
+
+用户确认标准库优先、完成后交付 main，并要求 README 与日期分类 CHANGELOG。需求状态更新 Confirmed；设计、协议和实施切片见 design.md。上游依赖已补齐，允许实施。密钥和载荷真实性、像素边界与旧模式兼容均明确，后续按实测记录支持范围。

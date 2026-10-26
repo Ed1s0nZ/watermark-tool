@@ -1,9 +1,9 @@
 # Go 自研图片盲水印
 
-- Status: Pending Confirmation
+- Status: Confirmed
 - Created: 2026-10-26
-- Confirmed by: Pending
-- Confirmation date: Pending
+- Confirmed by: 用户（确认标准库优先、完成后交付 main）
+- Confirmation date: 2026-10-26
 - 来源：用户希望自行用 Go 实现，不依赖 guofei9987/blind_watermark；允许下载图片，保留原图，每次复制原图再在副本上测试；并询问后续扩展方向。
 
 ## 背景与目标
@@ -53,4 +53,4 @@
 
 ## 确认
 
-待确认本首版范围，尤其是 ASM-001 与 ASM-003。原始请求已授权 Go 自研方向与副本测试；本草案不把尚未接受的容量、压缩强度或平台扩展写成已确认要求。
+用户于 2026-10-26 确认标准库优先、自研完成并交付 main，要求更新 README 和根目录 CHANGELOG（日期、项目与新增/修复/其他分类）。接受上述首版范围与探索边界。
