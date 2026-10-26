@@ -17,15 +17,21 @@ import (
 )
 
 type Store struct {
-	mu       sync.Mutex
-	dir      string
-	master   []byte
-	lock     *os.File
-	data     state
-	keys     keyState
-	busy     map[string]bool
-	poisoned bool
-	write    func(string, []byte) error
+	unified   bool
+	jobs      []Job
+	audit     []AuditEvent
+	sequence  uint64
+	keyActor  string
+	lastBytes int
+	mu        sync.Mutex
+	dir       string
+	master    []byte
+	lock      *os.File
+	data      state
+	keys      keyState
+	busy      map[string]bool
+	poisoned  bool
+	write     func(string, []byte) error
 }
 
 func atomicWrite(path string, data []byte) error {
@@ -128,6 +134,9 @@ func (s *Store) mac(data []byte) []byte {
 	return m.Sum(nil)
 }
 func (s *Store) saveState(next state) error {
+	if s.unified {
+		return s.commitPlatform(next, s.keys, s.jobs, s.batchEvent(next))
+	}
 	payload, err := json.Marshal(next)
 	if err != nil {
 		return err
@@ -144,6 +153,23 @@ func (s *Store) saveState(next state) error {
 	return nil
 }
 func (s *Store) saveKeys(next keyState) error {
+	if s.unified {
+		event := NewEvent("system", "key.update", "platform", "completed", "")
+		if len(next.Keys) > len(s.keys.Keys) {
+			k := next.Keys[len(next.Keys)-1]
+			event = NewEvent(k.CreatedBy, "key.create", k.ID, "completed", "")
+		} else {
+			for i, k := range next.Keys {
+				if k.State != s.keys.Keys[i].State {
+					event = NewEvent(s.keyActor, "key.state", k.ID, "completed", "")
+					if k.State == "active" {
+						break
+					}
+				}
+			}
+		}
+		return s.commitPlatform(s.data, next, s.jobs, event)
+	}
 	data, err := json.Marshal(next)
 	if err != nil {
 		return err
@@ -232,28 +258,34 @@ func Open(dir string, master, legacy []byte) (store *Store, err error) {
 			Version int  `json:"version"`
 			Ready   bool `json:"ready"`
 		}
-		if decode(data, &format) != nil || format.Version != 1 || !format.Ready {
+		if decode(data, &format) != nil || (format.Version != 1 && format.Version != 2) || !format.Ready {
 			return nil, ErrStore
 		}
-		data, err = readPrivate(filepath.Join(dir, "keys.enc"))
-		if err != nil {
-			return nil, ErrStore
-		}
-		data, err = s.unseal(data)
-		if err != nil || decode(data, &s.keys) != nil {
-			return nil, ErrStore
-		}
-		data, err = readPrivate(filepath.Join(dir, "records.json"))
-		if err != nil {
-			return nil, ErrStore
-		}
-		var envelope signedState
-		if decode(data, &envelope) != nil || !hmac.Equal(envelope.MAC, s.mac(envelope.Payload)) || decode(envelope.Payload, &s.data) != nil {
-			return nil, ErrStore
-		}
-		for i := range s.data.Batches {
-			s.data.Batches[i].Batch.RequestHash = s.data.Batches[i].RequestHash
-			s.data.Batches[i].Batch.Fingerprint = s.data.Batches[i].Fingerprint
+		if format.Version == 2 {
+			if err = s.loadPlatform(); err != nil {
+				return nil, err
+			}
+		} else {
+			data, err = readPrivate(filepath.Join(dir, "keys.enc"))
+			if err != nil {
+				return nil, ErrStore
+			}
+			data, err = s.unseal(data)
+			if err != nil || decode(data, &s.keys) != nil {
+				return nil, ErrStore
+			}
+			data, err = readPrivate(filepath.Join(dir, "records.json"))
+			if err != nil {
+				return nil, ErrStore
+			}
+			var envelope signedState
+			if decode(data, &envelope) != nil || !hmac.Equal(envelope.MAC, s.mac(envelope.Payload)) || decode(envelope.Payload, &s.data) != nil {
+				return nil, ErrStore
+			}
+			for i := range s.data.Batches {
+				s.data.Batches[i].Batch.RequestHash = s.data.Batches[i].RequestHash
+				s.data.Batches[i].Batch.Fingerprint = s.data.Batches[i].Fingerprint
+			}
 		}
 	}
 	if err = s.validate(); err != nil {
@@ -272,6 +304,9 @@ func Open(dir string, master, legacy []byte) (store *Store, err error) {
 		if !found {
 			return nil, fmt.Errorf("%w: legacy environment key was not part of initial migration", ErrConfig)
 		}
+	}
+	if err = s.upgradePlatform(); err != nil {
+		return nil, err
 	}
 	next := s.snapshot()
 	changed := false
@@ -365,7 +400,7 @@ func (s *Store) validate() error {
 			copies[c.ID] = true
 		}
 	}
-	return nil
+	return s.validateJobs()
 }
 
 func (s *Store) derive(label string) []byte {

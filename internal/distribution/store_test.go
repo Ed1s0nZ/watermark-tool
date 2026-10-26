@@ -193,7 +193,7 @@ func TestCrashCorruptionLockAndWriteFailure(t *testing.T) {
 		t.Fatal(next, err)
 	}
 	recovered.Finish(batch.ID, "")
-	oldData, _ := os.ReadFile(filepath.Join(dir, "records.json"))
+	oldData, _ := os.ReadFile(filepath.Join(dir, "platform.json"))
 	recovered.write = func(string, []byte) error { return os.ErrPermission }
 	if _, _, err = recovered.Begin("request-0000000003", strings.Repeat("a", 64), "admin", recipients); !errors.Is(err, ErrStore) {
 		t.Fatal(err)
@@ -202,7 +202,7 @@ func TestCrashCorruptionLockAndWriteFailure(t *testing.T) {
 		t.Fatal(err)
 	}
 	recovered.Close()
-	data, _ := os.ReadFile(filepath.Join(dir, "records.json"))
+	data, _ := os.ReadFile(filepath.Join(dir, "platform.json"))
 	if !bytes.Equal(data, oldData) {
 		t.Fatal("failed write changed durable state")
 	}
@@ -210,11 +210,11 @@ func TestCrashCorruptionLockAndWriteFailure(t *testing.T) {
 		wrong.Close()
 		t.Fatal("wrong master accepted")
 	}
-	data, _ = os.ReadFile(filepath.Join(dir, "records.json"))
+	data, _ = os.ReadFile(filepath.Join(dir, "platform.json"))
 	if !bytes.Equal(data, oldData) {
 		t.Fatal("wrong master mutated records")
 	}
-	os.WriteFile(filepath.Join(dir, "records.json"), []byte("broken"), 0600)
+	os.WriteFile(filepath.Join(dir, "platform.json"), []byte("broken"), 0600)
 	if wrong, err := Open(dir, testMaster, testLegacy); err == nil {
 		wrong.Close()
 		t.Fatal("corrupt state silently reset")

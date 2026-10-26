@@ -176,12 +176,12 @@ try {
   assert.equal(hash(retried.zip), hash(original.zip));
   await stop();
   assert.equal(existsSync(join(data, "runtime")), false);
-  const stateBefore = hash(readFileSync(join(data, "records.json")));
+  const stateBefore = hash(readFileSync(join(data, "platform.json")));
   const keysBefore = hash(readFileSync(join(data, "keys.enc")));
   const wrong = launch({ ...env, WATERMARK_DATA_KEY: "2b".repeat(32) });
   const [code] = await once(wrong, "exit");
   assert.notEqual(code, 0);
-  assert.equal(hash(readFileSync(join(data, "records.json"))), stateBefore);
+  assert.equal(hash(readFileSync(join(data, "platform.json"))), stateBefore);
   assert.equal(hash(readFileSync(join(data, "keys.enc"))), keysBefore);
   assert.equal(
     hash(readFileSync(join(root, "internal/blind/testdata/clean.png"))),

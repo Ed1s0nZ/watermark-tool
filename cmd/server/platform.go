@@ -101,7 +101,7 @@ func registerPlatform(api *gin.RouterGroup, store *distribution.Store, tempDir s
 		if !smallJSON(c, &request) {
 			return
 		}
-		key, err := store.SetKeyState(c.Param("id"), request.State)
+		key, err := store.SetKeyState(c.Param("id"), request.State, c.GetString("username"))
 		if err != nil {
 			platformError(c, err)
 			return

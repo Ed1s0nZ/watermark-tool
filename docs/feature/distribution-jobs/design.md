@@ -73,7 +73,7 @@ flowchart LR
 | POST /api/audit/search | JSON from/to/action/actor/outcome/page/page_size | 分页事件，降级状态明确 |
 | POST /api/audit/export | 同筛选及format=json/csv | 全匹配范围，最多10000，超限422，不静默截断 |
 
-旧batches/records查询及Lookup额外关联已完成JobCopy。原有字段保持，新增job_id/source_id/rendered_sha256可选区分多图。任务的未完成副本不作为已生成登记。保持verify/report使用现有Lookup验证密钥、算法、签名时间和标识。
+旧records查询及Lookup额外关联已完成JobCopy。原有字段保持，新增job_id/source_id/rendered_sha256可选区分多图。任务的未完成副本不作为已生成登记。保持verify/report使用现有Lookup验证密钥、算法、签名时间和标识。
 
 ## 审计覆盖与错误
 

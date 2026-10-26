@@ -74,6 +74,10 @@ type keyState struct {
 	Keys    []keySecret `json:"keys"`
 }
 type Record struct {
+	JobID          string `json:"job_id,omitempty"`
+	SourceID       string `json:"source_id,omitempty"`
+	SourceName     string `json:"source_name,omitempty"`
+	RenderedSHA256 string `json:"rendered_sha256,omitempty"`
 	Copy
 	BatchID      string    `json:"batch_id"`
 	KeyID        string    `json:"key_id"`

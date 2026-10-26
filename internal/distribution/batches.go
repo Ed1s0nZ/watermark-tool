@@ -68,7 +68,7 @@ func (s *Store) Begin(request, source, actor string, recipients []Recipient) (Ba
 			return s.resume(i)
 		}
 	}
-	if len(s.data.Batches) >= 10000 {
+	if s.noNewWrites() || len(s.data.Batches) >= 10000 {
 		return Batch{}, nil, ErrLimit
 	}
 	id, err := randomID(16)

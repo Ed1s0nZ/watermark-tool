@@ -31,7 +31,7 @@ func (s *Store) CreateKey(actor string) (Key, error) {
 	if s.poisoned {
 		return Key{}, ErrStore
 	}
-	if len(s.keys.Keys) >= maxKeys || s.enabledCount() >= maxEnabledKeys {
+	if s.noNewWrites() || len(s.keys.Keys) >= maxKeys || s.enabledCount() >= maxEnabledKeys {
 		return Key{}, ErrLimit
 	}
 	id, err := randomID(12)
@@ -51,11 +51,14 @@ func (s *Store) CreateKey(actor string) (Key, error) {
 	}
 	return key, nil
 }
-func (s *Store) SetKeyState(id, value string) (Key, error) {
+func (s *Store) SetKeyState(id, value string, actors ...string) (Key, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.poisoned {
 		return Key{}, ErrStore
+	}
+	if s.noNewWrites() {
+		return Key{}, ErrLimit
 	}
 	if value != "active" && value != "decrypt-only" && value != "disabled" {
 		return Key{}, ErrState
@@ -88,6 +91,10 @@ func (s *Store) SetKeyState(id, value string) (Key, error) {
 	}
 	next.Keys[idx].State = value
 	next.Keys[idx].UpdatedAt = now
+	s.keyActor = "system"
+	if len(actors) > 0 {
+		s.keyActor = actors[0]
+	}
 	if err := s.saveKeys(next); err != nil {
 		return Key{}, err
 	}

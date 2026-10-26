@@ -1,6 +1,7 @@
 package distribution
 
 import (
+	"sort"
 	"strings"
 	"watermark-tool/internal/blind"
 )
@@ -78,6 +79,19 @@ func (s *Store) Records(q string, page, size int) ([]Record, int, error) {
 			}
 		}
 	}
+	for _, j := range s.jobs {
+		for _, c := range j.Copies {
+			if matches(q, c.ID, c.Recipient.ID, c.Name, j.ID, c.SourceID) {
+				out = append(out, s.jobRecord(j, c))
+			}
+		}
+	}
+	sort.SliceStable(out, func(i, j int) bool {
+		if out[i].CreatedAt.Equal(out[j].CreatedAt) {
+			return out[i].ID < out[j].ID
+		}
+		return out[i].CreatedAt.After(out[j].CreatedAt)
+	})
 	total := len(out)
 	a, z := pageBounds(total, page, size)
 	return out[a:z], total, nil
@@ -95,6 +109,17 @@ func (s *Store) Lookup(result blind.Result, keyID string) (*Record, error) {
 		for _, c := range b.Copies {
 			if c.ID == result.Watermark {
 				r := s.record(b, c)
+				return &r, nil
+			}
+		}
+	}
+	for _, j := range s.jobs {
+		if !j.Generated || j.KeyID != keyID || j.Algorithm != result.Algorithm || result.Timestamp != j.CreatedAt.Format("2006-01-02T15:04:05Z07:00") {
+			continue
+		}
+		for _, c := range j.Copies {
+			if c.ID == result.Watermark {
+				r := s.jobRecord(j, c)
 				return &r, nil
 			}
 		}
