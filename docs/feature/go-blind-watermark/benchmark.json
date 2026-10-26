@@ -1,0 +1,134 @@
+[
+  {
+    "name": "flower.jpg",
+    "source": "https://upload.wikimedia.org/wikipedia/commons/3/3f/JPEG_example_flower.jpg",
+    "sha256": "c160fa1bc488af7f48984bd627bc5cbc5a20b98eaaf11af92e99a206b376252d",
+    "width": 500,
+    "height": 477,
+    "original_intact": true,
+    "cases": [
+      {
+        "mode": "png-reencode",
+        "recovered": true,
+        "psnr_db": 33.46171683233825,
+        "milliseconds": 56
+      },
+      {
+        "mode": "jpeg-95",
+        "recovered": true,
+        "psnr_db": 33.373577954015424,
+        "milliseconds": 39
+      },
+      {
+        "mode": "jpeg-85",
+        "recovered": true,
+        "psnr_db": 32.614664409244355,
+        "milliseconds": 39
+      },
+      {
+        "mode": "jpeg-75",
+        "recovered": true,
+        "psnr_db": 31.76064516336298,
+        "milliseconds": 44
+      },
+      {
+        "mode": "clean-negative",
+        "recovered": true,
+        "milliseconds": 4
+      },
+      {
+        "mode": "wrong-key-negative",
+        "recovered": true,
+        "milliseconds": 0
+      }
+    ]
+  },
+  {
+    "name": "astronaut.png",
+    "source": "https://raw.githubusercontent.com/scikit-image/scikit-image/v0.19.3/skimage/data/astronaut.png",
+    "sha256": "88431cd9653ccd539741b555fb0a46b61558b301d4110412b5bc28b5e3ea6cb5",
+    "width": 512,
+    "height": 512,
+    "original_intact": true,
+    "cases": [
+      {
+        "mode": "png-reencode",
+        "recovered": true,
+        "psnr_db": 31.90054756535012,
+        "milliseconds": 68
+      },
+      {
+        "mode": "jpeg-95",
+        "recovered": true,
+        "psnr_db": 30.82415770096435,
+        "milliseconds": 52
+      },
+      {
+        "mode": "jpeg-85",
+        "recovered": true,
+        "psnr_db": 30.143024024475192,
+        "milliseconds": 51
+      },
+      {
+        "mode": "jpeg-75",
+        "recovered": true,
+        "psnr_db": 29.68359123627169,
+        "milliseconds": 50
+      },
+      {
+        "mode": "clean-negative",
+        "recovered": true,
+        "milliseconds": 3
+      },
+      {
+        "mode": "wrong-key-negative",
+        "recovered": true,
+        "milliseconds": 0
+      }
+    ]
+  },
+  {
+    "name": "coffee.png",
+    "source": "https://raw.githubusercontent.com/scikit-image/scikit-image/v0.19.3/skimage/data/coffee.png",
+    "sha256": "cc02f8ca188b167c775a7101b5d767d1e71792cf762c33d6fa15a4599b5a8de7",
+    "width": 600,
+    "height": 400,
+    "original_intact": true,
+    "cases": [
+      {
+        "mode": "png-reencode",
+        "recovered": true,
+        "psnr_db": 32.22531738538699,
+        "milliseconds": 66
+      },
+      {
+        "mode": "jpeg-95",
+        "recovered": true,
+        "psnr_db": 30.905892388613555,
+        "milliseconds": 51
+      },
+      {
+        "mode": "jpeg-85",
+        "recovered": true,
+        "psnr_db": 29.922291960573382,
+        "milliseconds": 51
+      },
+      {
+        "mode": "jpeg-75",
+        "recovered": true,
+        "psnr_db": 29.194679112764568,
+        "milliseconds": 50
+      },
+      {
+        "mode": "clean-negative",
+        "recovered": true,
+        "milliseconds": 2
+      },
+      {
+        "mode": "wrong-key-negative",
+        "recovered": true,
+        "milliseconds": 0
+      }
+    ]
+  }
+]
