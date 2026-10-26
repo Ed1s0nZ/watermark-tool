@@ -60,7 +60,13 @@ export function loadTemplates(): Template[] {
   return v.items;
 }
 export function storeTemplates(items: Template[]) {
-  if (items.length > 20) throw Error("storage");
+  if (
+    items.length > 20 ||
+    items.some(
+      (i) => !i.name.trim() || i.name.length > 40 || !validStyle(i.style),
+    )
+  )
+    throw Error("storage");
   localStorage.setItem(
     storageKey,
     JSON.stringify({

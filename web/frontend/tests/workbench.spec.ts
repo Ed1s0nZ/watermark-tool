@@ -255,5 +255,96 @@ test("experiment, bilingual dual watermark, templates and truthful reports", asy
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+  await page
+    .getByLabel("Experiment source", { exact: true })
+    .setInputFiles("../../internal/blind/testdata/clean.png");
+  await page
+    .getByRole("textbox", { name: "Invisible payload", exact: true })
+    .fill("Mobile-A");
+  await page
+    .getByRole("button", { name: "Run experiment", exact: true })
+    .click();
+  await expect(
+    page.getByText("Baseline verified; original preserved.", { exact: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: info.outputPath("laboratory-mobile.png"),
+    animations: "disabled",
+  });
+  await page
+    .getByRole("button", { name: "Open navigation", exact: true })
+    .click();
+  await page
+    .getByRole("menuitem", { name: "Dual watermark templates", exact: true })
+    .last()
+    .click();
+  await page
+    .getByLabel("Dual watermark source", { exact: true })
+    .setInputFiles("../../internal/blind/testdata/clean.png");
+  await page
+    .getByRole("textbox", { name: "Visible text", exact: true })
+    .fill("Mobile Team");
+  await page
+    .getByRole("textbox", { name: "Invisible payload", exact: true })
+    .fill("Mobile-A");
+  await page
+    .getByRole("button", { name: "Create preview", exact: true })
+    .click();
+  await expect(
+    page.getByText("Preview ready. Check the text before generating.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Generate dual watermark", exact: true })
+    .click();
+  await expect(
+    page.getByText("Generated and invisible payload verified.", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  const mobileDL = page.waitForEvent("download");
+  await page.getByRole("link", { name: "Download image", exact: true }).click();
+  const mobileImage = await bytes(await mobileDL);
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page
+    .getByRole("button", { name: "Open navigation", exact: true })
+    .click();
+  await page
+    .getByRole("menuitem", { name: "Distribution records", exact: true })
+    .last()
+    .click();
+  await page.getByRole("tab", { name: "Image trace", exact: true }).click();
+  await page
+    .getByLabel("Image to trace", { exact: true })
+    .setInputFiles({
+      name: "mobile.png",
+      mimeType: "image/png",
+      buffer: mobileImage,
+    });
+  await page
+    .getByRole("button", { name: "Verify and create report", exact: true })
+    .click();
+  await expect(
+    page.getByText("Verified, unregistered", { exact: true }),
+  ).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: info.outputPath("report-mobile.png"),
+    animations: "disabled",
+  });
   expect(errors).toEqual([]);
 });

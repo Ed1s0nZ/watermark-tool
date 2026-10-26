@@ -19,6 +19,7 @@ import {
   loadTemplates,
   renderVisible,
   storeTemplates,
+  validStyle,
   Style,
   Template,
 } from "./visibleWatermark";
@@ -245,7 +246,7 @@ export function DualPage({ active }: { active: boolean }) {
               style={{ width: 200 }}
             />
             <Button
-              disabled={busy || !name.trim()}
+              disabled={busy || !name.trim() || !validStyle(style)}
               onClick={() => {
                 const n = name.trim();
                 const items = templates.filter((i) => i.name !== n);
