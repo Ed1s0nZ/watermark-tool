@@ -107,6 +107,9 @@ func (s *Store) resume(i int) (Batch, []byte, error) {
 	if s.busy[b.ID] {
 		return Batch{}, nil, ErrBusy
 	}
+	if s.noNewWrites() {
+		return Batch{}, nil, ErrLimit
+	}
 	var key []byte
 	for _, k := range s.keys.Keys {
 		if k.ID == b.KeyID {

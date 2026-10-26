@@ -340,3 +340,35 @@ func TestRecipientTemplateIsNotRecursive(t *testing.T) {
 		t.Fatal(text, err)
 	}
 }
+
+func TestDegradedAuditBlocksNewRegenerationButFinishesInflight(t *testing.T) {
+	s, _ := openTest(t)
+	digest := strings.Repeat("a", 64)
+	first, _, err := s.Begin("quota-first-request", digest, "admin", recipients)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err = s.Finish(first.ID, ""); err != nil {
+		t.Fatal(err)
+	}
+	inflight, _, err := s.Begin("quota-second-request", digest, "admin", recipients)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.mu.Lock()
+	s.auditFault = true
+	s.mu.Unlock()
+	if _, _, err = s.Resume(first.ID, digest); !errors.Is(err, ErrLimit) {
+		t.Fatal("regeneration bypassed degraded audit", err)
+	}
+	if _, _, err = s.Begin("quota-first-request", digest, "admin", recipients); !errors.Is(err, ErrLimit) {
+		t.Fatal("idempotent regeneration bypassed degraded audit", err)
+	}
+	if err = s.Finish(inflight.ID, ""); err != nil {
+		t.Fatal("inflight finalization was blocked", err)
+	}
+	records, _, err := s.Batches(inflight.ID, 1, 20)
+	if err != nil || len(records) != 1 || !records[0].Generated {
+		t.Fatal(records, err)
+	}
+}
