@@ -83,15 +83,17 @@ curl -b cookies.txt -X POST http://localhost:8080/api/auth/logout
 
 `credentials.json` 格式为 `{"username":"你的账号","password":"你的密码"}`。Cookie jar 包含会话凭据，退出后删除本地临时文件。新增接口：`POST /api/auth/login`、`GET /api/auth/session`、`POST /api/auth/logout`。当前单文件最大 50 MB，水印文本最大 **100 个 UTF-8 字节**（并非 100 个中文字符）。
 
-以下截图为旧版工具参考，平台界面已重构：
+## 功能界面
 
-## Web展示
-### 添加隐水印   
-<img src="https://github.com/Ed1s0nZ/watermark-tool/blob/main/image/%E6%B7%BB%E5%8A%A0%E9%9A%90%E6%B0%B4%E5%8D%B0.png" width="800px">  
+以下为当前 Ant Design 平台的实际操作截图。
 
+### 添加隐水印
+
+![添加隐水印：上传文件、输入标识并下载结果](image/platform-add-watermark.png)
 
 ### 提取隐水印
-<img src="https://github.com/Ed1s0nZ/watermark-tool/blob/main/image/%E6%8F%90%E5%8F%96%E9%9A%90%E6%B0%B4%E5%8D%B0.png" width="800px">  
+
+![提取隐水印：查看水印内容与添加时间](image/platform-extract-watermark.png)
 
 ## 主要特性
 

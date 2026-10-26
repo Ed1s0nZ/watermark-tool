@@ -167,6 +167,10 @@ test("authenticated platform, watermark round trip, preferences and mobile navig
   const download = await downloadPromise;
   const downloadPath = await download.path();
   expect(downloadPath).toBeTruthy();
+  await page.setViewportSize({width:1440,height:1080});
+  await page.locator(".content").evaluate(el=>el.scrollTo(0,0));
+  await page.screenshot({path:testInfo.outputPath("add-watermark.png"),fullPage:true,animations:"disabled"});
+  await page.setViewportSize({width:1280,height:720});
   await page.getByRole("menuitem", { name: "Extract watermark" }).click();
   const extract = page.locator(".content-inner > div").filter({
     has: page.getByRole("heading", {
@@ -185,6 +189,10 @@ test("authenticated platform, watermark round trip, preferences and mobile navig
   await expect(page.locator(".result-text")).toHaveText("内部资料-2026");
   await expect(page.getByText("Created at", { exact: true })).toBeVisible();
   await expect(extract).not.toContainText("No time information returned");
+  await page.setViewportSize({width:1440,height:1000});
+  await page.locator(".content").evaluate(el=>el.scrollTo(0,0));
+  await page.screenshot({path:testInfo.outputPath("extract-watermark.png"),fullPage:true,animations:"disabled"});
+  await page.setViewportSize({width:1280,height:720});
   await page
     .getByRole("checkbox", { name: "Show watermark creation time" })
     .uncheck();
