@@ -1,8 +1,8 @@
-# 隐形文档水印工具
+# 文档水印平台
 
 一个安全、高效的隐形文档水印解决方案，可为各类文档添加完全不可见的数字水印，同时支持水印提取和验证。基于Go语言开发，支持web和cli两种方式使用，水印采用隐写技术，确保水印完全隐形且不影响原始文档的阅读体验和视觉效果。
 
-<img src="https://github.com/Ed1s0nZ/watermark-tool/blob/main/image/%E7%95%8C%E9%9D%A2.png" width="800px">  
+![Ant Design 平台工作台](image/platform-desktop.png)
 
 ## 更新时间线
 - 2025.06.08
@@ -10,16 +10,80 @@
   2. 解决了一个前端复选框的bug，该bug会导致选择‘显示水印添加时间’无法生效。
   3. 解决了一个后端bug，该bug会导致jpg无法加水印，以及excel加水印后无法打开。
 
-## 快速开始
+## 平台界面与登录
+
+前端使用 React + TypeScript + Ant Design，提供工作台、添加水印、提取水印和设置页面，支持响应式侧边导航、浅色/深色/跟随系统主题及简体中文/English。显示偏好保存在当前浏览器；不保存密码或登录令牌到 localStorage。工作台不存储处理历史或长期文件。
+
+![登录界面](image/platform-login.png)
+
+### 构建与启动（平台版）
+
+需要 Go 1.24.4+、Node.js 20.19+ 或 22.12+、npm。首次启动前必须构建前端：
+
 ```bash
-# 快速安装和启动
-git clone https://github.com/Ed1s0nZ/watermark-tool.git
-cd watermark-tool
+cd web/frontend
+npm ci
+npm run build
+cd ../..
 go build -o server ./cmd/server
+export WATERMARK_ADMIN_USER=admin
+# 请设置自己的密码，至少 12 字节；下面交互输入不会写入命令历史。
+read -s WATERMARK_ADMIN_PASSWORD
+export WATERMARK_ADMIN_PASSWORD
 ./server
-# 然后访问 http://localhost:8080
 ```
 
+从仓库根目录启动并访问 http://localhost:8080。服务提供本地 `web/dist` 资源，不依赖浏览器 CDN。每次修改前端后重新构建。`web/dist` 不提交到 Git，部署时需与二进制一起复制；无需运行 Node 服务。
+
+| 环境变量 | 说明 |
+| --- | --- |
+| `WATERMARK_ADMIN_USER` | 必填，单管理员用户名 |
+| `WATERMARK_ADMIN_PASSWORD` | 必填，至少 12 字节；不提供默认密码 |
+| `WATERMARK_COOKIE_SECURE` | HTTPS 部署设 `true`；本地 HTTP 默认 `false` |
+| `PORT` | 默认 `8080` |
+
+配置缺失时登录返回 503，页面显示配置说明。`.env.example` 仅作变量参考，服务不会自动读取 `.env`。生产环境应通过 HTTPS 提供平台，并配置安全 Cookie。服务默认不信任代理提供的客户端 IP；代理部署需按实际网络配置可信代理后再按客户端 IP 限流。
+
+会话使用随机令牌、HttpOnly / SameSite=Strict Cookie，最长 8 小时，退出即撤销，服务重启后失效。当前为单实例内存会话，不支持多副本共享登录。账号密码修改后需重启服务。不提供注册、密码找回、角色或用户管理。
+
+### 开发与验证
+
+```bash
+# 终端 1：配置上述账号变量后，在仓库根目录运行
+ go run ./cmd/server
+# 终端 2：开发服务器（代理 /api 至本地 :8080）
+ cd web/frontend
+ npm run dev
+
+# 仓库根目录运行 Go 检查
+ go test -race ./...
+# 前端目录运行
+ npm run build
+ npx playwright install chromium
+ npm run test:e2e
+```
+
+E2E 使用专用本地 :18080 服务与测试账号，执行前需已构建前端，并保证端口空闲。测试覆盖登录、访问控制、文件往返、偏好保存和移动端导航。开发代理以 Vite 默认转发原始 Host 的方式保持同源检查。
+
+### API 登录迁移（兼容性变化）
+
+水印 API 路径、参数及成功响应不变，但现在必须先登录并携带会话 Cookie，匿名请求返回 401。CLI 使用不变。浏览器跨站写请求返回 403。登录与文件操作共享每 IP 每分钟 10 次限制，静态资源、会话探测、格式查询和退出不计入额度。
+
+```bash
+# 将凭据 JSON 写入本地受限权限文件，不将真实密码放进版本库。
+curl -c cookies.txt -H 'Content-Type: application/json' \
+  --data-binary @credentials.json http://localhost:8080/api/auth/login
+curl -b cookies.txt http://localhost:8080/api/auth/session
+curl -b cookies.txt -F 'file=@文档.pdf' -F 'watermark=内部资料' \
+  http://localhost:8080/api/add-watermark -o watermarked.pdf
+curl -b cookies.txt -F 'file=@watermarked.pdf' \
+  'http://localhost:8080/api/extract-watermark?show_timestamp=true'
+curl -b cookies.txt -X POST http://localhost:8080/api/auth/logout
+```
+
+`credentials.json` 格式为 `{"username":"你的账号","password":"你的密码"}`。Cookie jar 包含会话凭据，退出后删除本地临时文件。新增接口：`POST /api/auth/login`、`GET /api/auth/session`、`POST /api/auth/logout`。当前单文件最大 50 MB，水印文本最大 **100 个 UTF-8 字节**（并非 100 个中文字符）。
+
+以下截图为旧版工具参考，平台界面已重构：
 
 ## Web展示
 ### 添加隐水印   
@@ -52,50 +116,12 @@ go build -o server ./cmd/server
 | RTF     | ✅      | ✅      | 使用特殊字段隐藏水印信息 |
 | ODT     | ✅      | ✅      | 在文档XML结构中添加隐藏标记 |
 
-## 快速开始
-
-### 安装要求
-
-- Go 1.18+（推荐使用Go 1.20或更高版本）
-- 主要依赖：
-  - github.com/gin-gonic/gin
-  - github.com/gin-contrib/cors
-  - github.com/google/uuid
-
-### 安装步骤
-
-1. 克隆仓库
-   ```bash
-   git clone https://github.com/Ed1s0nZ/watermark-tool.git
-   cd watermark-tool
-   ```
-
-2. 安装依赖
-   ```bash
-   go mod tidy
-   ```
-
-3. 构建项目
-   ```bash
-   go build -o server ./cmd/server
-   ```
-   
-4. 运行服务
-   ```bash
-   ./server
-   ```
-
-5. 访问Web界面
-   ```
-   http://localhost:8080
-   ```
-
 ## 使用指南
 
 ### Web界面使用
 
-1. 访问 http://localhost:8080
-2. 选择"添加隐水印"或"提取隐水印"功能
+1. 访问 http://localhost:8080，使用配置的管理员账号登录
+2. 从侧边栏选择"添加隐水印"或"提取隐水印"功能
 3. 上传文件并输入隐水印文本（添加水印时）
 4. 等待处理完成后下载文件或查看提取结果
 
@@ -140,6 +166,8 @@ go build -o cli ./cmd/cli
 
 ### API接口使用
 
+以下请求均需按前述迁移说明携带 `-b cookies.txt`，编程示例同样需要 Cookie jar 并预先登录。
+
 #### 添加隐水印
 
 ```http
@@ -154,7 +182,7 @@ Content-Type: multipart/form-data
 示例请求：
 
 ```bash
-curl -X POST -F "file=@文档.pdf" -F "watermark=机密文件" \
+curl -b cookies.txt -X POST -F "file=@文档.pdf" -F "watermark=机密文件" \
      http://localhost:8080/api/add-watermark -o 带水印文档.pdf
 ```
 
@@ -171,7 +199,7 @@ Content-Type: multipart/form-data
 示例请求：
 
 ```bash
-curl -X POST -F "file=@带水印文档.pdf" \
+curl -b cookies.txt -X POST -F "file=@带水印文档.pdf" \
      http://localhost:8080/api/extract-watermark
 ```
 
@@ -185,7 +213,7 @@ GET /api/supported-types
 
 ```json
 {
-  "supported_types": ["pdf", "docx", "xlsx", "pptx", "jpg", "png", "rtf", "odt"]
+  "types": ["pdf", "docx", "xlsx", "pptx", "jpg", "png", "rtf", "odt"]
 }
 ```
 
@@ -199,6 +227,8 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"encoding/json"
+	"net/http/cookiejar"
 	"io"
 	"mime/multipart"
 	"net/http"
@@ -259,7 +289,7 @@ func addWatermark(filePath, watermarkText string) error {
 	writer.Close()
 	
 	// 发送请求
-	resp, err := http.Post("http://localhost:8080/api/add-watermark", writer.FormDataContentType(), &buf)
+	resp, err := httpClient.Post("http://localhost:8080/api/add-watermark", writer.FormDataContentType(), &buf)
 	if err != nil {
 		return err
 	}
@@ -306,7 +336,7 @@ func extractWatermark(filePath string) (string, error) {
 	writer.Close()
 	
 	// 发送请求
-	resp, err := http.Post("http://localhost:8080/api/extract-watermark", writer.FormDataContentType(), &buf)
+	resp, err := httpClient.Post("http://localhost:8080/api/extract-watermark", writer.FormDataContentType(), &buf)
 	if err != nil {
 		return "", err
 	}
