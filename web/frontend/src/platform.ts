@@ -8,6 +8,11 @@ export interface KeyVersion {
   created_by: string;
 }
 export interface CopyRecord {
+  generated?: boolean;
+  job_id?: string;
+  source_id?: string;
+  source_name?: string;
+  rendered_sha256?: string;
   id: string;
   recipient_id: string;
   name: string;

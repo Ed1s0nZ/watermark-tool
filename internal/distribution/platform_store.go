@@ -132,5 +132,5 @@ func (s *Store) upgradePlatform() error {
 func (s *Store) RootDir() string { return s.dir }
 
 func (s *Store) noNewWrites() bool {
-	return len(s.audit) >= 99968 || s.lastBytes > maxStateBytes-(1<<20)
+	return s.auditFault || len(s.audit) >= 99968 || s.lastBytes > maxStateBytes-(1<<20)
 }

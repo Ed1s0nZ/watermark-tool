@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"watermark-tool/internal/blind"
+	"watermark-tool/internal/delivery"
 	"watermark-tool/internal/distribution"
 )
 
@@ -34,6 +35,14 @@ func openPlatform() (*distribution.Store, error) {
 func platformError(c *gin.Context, err error) {
 	status, code := 500, "requestError"
 	switch {
+	case errors.Is(err, distribution.ErrTemplate):
+		status, code = 422, "job_template"
+	case errors.Is(err, distribution.ErrJobState):
+		status, code = 409, "job_state"
+	case errors.Is(err, delivery.ErrExpired):
+		status, code = 410, "archive_expired"
+	case errors.Is(err, delivery.ErrArchive):
+		status, code = 409, "archive_unavailable"
 	case errors.Is(err, distribution.ErrStore), errors.Is(err, distribution.ErrConfig):
 		status, code = 503, "store_unavailable"
 	case errors.Is(err, distribution.ErrConflict):
@@ -54,10 +63,12 @@ func platformError(c *gin.Context, err error) {
 		blindError(c, err)
 		return
 	}
+	c.Set("audit_code", code)
 	c.JSON(status, gin.H{"code": code})
 }
-func smallJSON(c *gin.Context, v any) bool {
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 16<<10)
+func smallJSON(c *gin.Context, v any) bool { return boundedJSON(c, v, 16<<10) }
+func boundedJSON(c *gin.Context, v any, limit int64) bool {
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, limit)
 	d := json.NewDecoder(c.Request.Body)
 	d.DisallowUnknownFields()
 	if err := d.Decode(v); err != nil {
@@ -189,6 +200,7 @@ func withPlatformImage(c *gin.Context, tempDir string, process func(string)) {
 		platformError(c, err)
 		return
 	}
+	setAuditFile(c, input)
 	process(input)
 }
 func platformBatch(c *gin.Context, store *distribution.Store, tempDir, resumeID string) {

@@ -9,6 +9,7 @@ import (
 	"io"
 	"os"
 	"strings"
+	"unicode"
 	"watermark-tool/internal/blind"
 )
 
@@ -25,12 +26,16 @@ func (w *limitedWriter) Write(p []byte) (int, error) {
 	w.remaining -= int64(n)
 	return n, err
 }
-func csvCell(s string) string {
-	if strings.ContainsAny(strings.TrimLeft(s, " \t\r\n")[:min(1, len(strings.TrimLeft(s, " \t\r\n")))], "=+-@") {
+
+// CSVCell prevents spreadsheet formula evaluation, including hidden prefix characters.
+func CSVCell(s string) string {
+	trim := strings.TrimLeftFunc(s, func(r rune) bool { return unicode.IsSpace(r) || unicode.IsControl(r) || unicode.Is(unicode.Cf, r) })
+	if len(trim) > 0 && strings.ContainsAny(trim[:1], "=+-@") {
 		return "'" + s
 	}
 	return s
 }
+func csvCell(s string) string { return CSVCell(s) }
 
 // Archive embeds independently from img for every recipient; input pixels are never mutated.
 func Archive(path string, img image.Image, b Batch, key []byte) error {

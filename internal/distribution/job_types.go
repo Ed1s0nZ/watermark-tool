@@ -26,6 +26,7 @@ type JobCopy struct {
 	Uploaded       bool   `json:"input_uploaded"`
 }
 type Job struct {
+	UploadToken   string         `json:"upload_token"`
 	ID            string         `json:"id"`
 	Operator      string         `json:"operator"`
 	LastActor     string         `json:"last_actor"`

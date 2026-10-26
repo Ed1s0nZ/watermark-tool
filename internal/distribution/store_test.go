@@ -375,6 +375,11 @@ func TestRegenerationFailurePreservesRegistration(t *testing.T) {
 func TestRuntimeCleanupIsSeparateFromDurableState(t *testing.T) {
 	s, dir := openTest(t)
 	runtime := s.RuntimeDir()
+
+	orphan := filepath.Join(dir, ".txn-interrupted")
+	if err := os.WriteFile(orphan, []byte("partial metadata transaction"), 0600); err != nil {
+		t.Fatal(err)
+	}
 	if err := os.WriteFile(filepath.Join(runtime, "orphan-image"), []byte("private temporary input"), 0600); err != nil {
 		t.Fatal(err)
 	}
@@ -388,6 +393,9 @@ func TestRuntimeCleanupIsSeparateFromDurableState(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(runtime, "orphan-image")); err != nil {
 		t.Fatal("bad-key startup modified runtime")
 	}
+	if _, err := os.Stat(orphan); err != nil {
+		t.Fatal("bad-key startup removed transaction", err)
+	}
 	reopened, err := Open(dir, testMaster, testLegacy)
 	if err != nil {
 		t.Fatal(err)
@@ -396,6 +404,9 @@ func TestRuntimeCleanupIsSeparateFromDurableState(t *testing.T) {
 	entries, err := os.ReadDir(runtime)
 	if err != nil || len(entries) != 0 {
 		t.Fatal("orphan temp not cleaned", err)
+	}
+	if _, err := os.Stat(orphan); !os.IsNotExist(err) {
+		t.Fatal("orphan transaction not cleaned", err)
 	}
 	after, _ := os.ReadFile(filepath.Join(dir, "keys.enc"))
 	if !bytes.Equal(keys, after) {

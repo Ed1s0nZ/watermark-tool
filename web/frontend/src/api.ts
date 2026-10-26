@@ -7,7 +7,12 @@ export class APIError extends Error {
     super(code);
   }
 }
+let authEpoch = 0;
+export function advanceAuthEpoch() {
+  authEpoch++;
+}
 export async function api(path: string, init?: RequestInit): Promise<Response> {
+  const requestedEpoch = authEpoch;
   let response: Response;
   try {
     response = await fetch(`/api${path}`, {
@@ -17,9 +22,18 @@ export async function api(path: string, init?: RequestInit): Promise<Response> {
   } catch {
     throw new APIError(0, "network");
   }
+  if (
+    requestedEpoch === authEpoch &&
+    response.headers.get("X-Audit-Degraded") === "true"
+  )
+    window.dispatchEvent(new Event("audit-degraded"));
   if (!response.ok) {
     const data = await response.json().catch(() => ({}));
-    if (response.status === 401 && path !== "/auth/login")
+    if (
+      requestedEpoch === authEpoch &&
+      response.status === 401 &&
+      path !== "/auth/login"
+    )
       window.dispatchEvent(new Event("session-expired"));
     throw new APIError(
       response.status,

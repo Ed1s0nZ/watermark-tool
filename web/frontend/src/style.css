@@ -105,6 +105,11 @@ a {
   line-height: 44px;
   margin-block: 6px;
 }
+.sidebar-navigation {
+ height: calc(100% - 224px);
+ overflow-y:auto;
+ overflow-x:hidden;
+}
 .sidebar-bottom {
   position: absolute;
   bottom: 20px;

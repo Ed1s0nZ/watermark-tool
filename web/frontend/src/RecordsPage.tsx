@@ -11,6 +11,7 @@ import {
   Tag,
   Typography,
 } from "antd";
+import { RecordOrigin } from "./RecordOrigin";
 import { api } from "./api";
 import { ErrorNotice } from "./ErrorNotice";
 import { useText } from "./i18n";
@@ -219,6 +220,9 @@ export function RecordsPage({ active }: { active: boolean }) {
                 showSizeChanger: false,
                 onChange: setPage,
               }}
+              expandable={{
+                expandedRowRender: (r) => <RecordOrigin record={r} />,
+              }}
               columns={[
                 {
                   title: t.watermarkID,
@@ -231,9 +235,20 @@ export function RecordsPage({ active }: { active: boolean }) {
                 },
                 { title: t.recipientID, dataIndex: "recipient_id" },
                 { title: t.registeredRecipient, dataIndex: "name" },
-                { title: t.batchID, dataIndex: "batch_id" },
+                {
+                  title: `${t.batchID} / ${t.taskID}`,
+                  render: (_, r) => r.job_id || r.batch_id,
+                },
+                { title: t.sourceName, dataIndex: "source_name" },
                 { title: t.keyID, dataIndex: "key_id" },
-                { title: t.status, dataIndex: "status", render: stateLabel },
+                {
+                  title: t.status,
+                  render: (_, r) => (
+                    <Tag color={r.generated ? "green" : "orange"}>
+                      {r.generated ? t.generatedCopy : t.pendingCopy}
+                    </Tag>
+                  ),
+                },
               ]}
             />
           )}

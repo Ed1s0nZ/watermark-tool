@@ -167,7 +167,7 @@ func TestJobsIdentityLifecycleAndRegisteredMatrix(t *testing.T) {
 	if err != nil || len(j.Copies) != 6 || j.RequestHash != "" || j.Fingerprint != "" {
 		t.Fatal(j, err)
 	}
-	if _, err = s.QueueJob(id, "admin", false); !errors.Is(err, ErrState) {
+	if _, err = s.QueueJob(id, "admin", false); !errors.Is(err, ErrJobState) {
 		t.Fatal("queued without inputs", err)
 	}
 	for _, src := range j.Sources {
@@ -261,6 +261,10 @@ func TestJobInputSnapshotsAndRecovery(t *testing.T) {
 	if recovered.Status != "interrupted" || recovered.Copies[0].Uploaded || recovered.Sources[0].Uploaded {
 		t.Fatal(recovered)
 	}
+	if _, err = reopened.JobInput(j.ID, j.Sources[0].ID, "", srcs[0].SHA256, 100, j.UploadToken); !errors.Is(err, ErrConflict) {
+		t.Fatal("stale upload token accepted", err)
+	}
+
 	if _, err = reopened.JobInput(j.ID, j.Copies[0].SourceID, j.Copies[0].ID, Digest([]byte("different render")), 100); !errors.Is(err, ErrConflict) {
 		t.Fatal(err)
 	}
@@ -269,5 +273,70 @@ func TestJobInputSnapshotsAndRecovery(t *testing.T) {
 	}
 	if _, err = reopened.NewJob("bad-style-0000001", "admin", srcs, recipients, "dual", "{name}", map[string]any{}); err == nil {
 		t.Fatal("invalid style")
+	}
+}
+
+func TestCSVHiddenFormulaPrefix(t *testing.T) {
+	for _, value := range []string{"=SUM(1,2)", "\ufeff=SUM(1,2)", "\u00a0@formula", "\t-1"} {
+		if CSVCell(value) != "'"+value {
+			t.Fatal(value)
+		}
+	}
+	if CSVCell("Alice") != "Alice" {
+		t.Fatal("ordinary cell changed")
+	}
+}
+
+func TestAuditQueriesAndJobBoundaries(t *testing.T) {
+	s, _ := openTest(t)
+	for _, actor := range []string{"admin", "operator"} {
+		if err := s.Audit(actor, "test.query", "", "completed", ""); err != nil {
+			t.Fatal(err)
+		}
+	}
+	rows, total, err := s.AuditSearch(AuditFilter{Actor: "operator", Action: "test.query", Outcome: "completed", Page: 1, Size: 1}, false)
+	if err != nil || total != 1 || len(rows) != 1 {
+		t.Fatal(rows, total, err)
+	}
+	if _, count, e := s.AuditSearch(AuditFilter{To: "0001-01-01T00:00:00Z", Page: 1, Size: 20}, false); e != nil || count != 0 {
+		t.Fatal("explicit zero date treated as absent", count, e)
+	}
+	at := rows[0].At.Format(time.RFC3339Nano)
+	if _, count, e := s.AuditSearch(AuditFilter{From: at, To: at, Page: 1, Size: 20}, false); e != nil || count != 1 {
+		t.Fatal(count, e)
+	}
+	for _, filter := range []AuditFilter{{Page: 0, Size: 20}, {Page: 1, Size: 101}, {Page: 1, Size: 20, From: "not-a-date"}, {Page: 1, Size: 20, From: "2027-01-01T00:00:00Z", To: "2026-01-01T00:00:00Z"}} {
+		if _, _, e := s.AuditSearch(filter, false); e == nil {
+			t.Fatal(filter)
+		}
+	}
+	s.mu.Lock()
+	for len(s.audit) < 10001 {
+		e := NewEvent("admin", "test.bulk", "", "completed", "")
+		s.sequence++
+		e.Sequence = s.sequence
+		s.audit = append(s.audit, e)
+	}
+	s.mu.Unlock()
+	if _, _, err = s.AuditSearch(AuditFilter{Page: 1, Size: 20}, true); !errors.Is(err, ErrLimit) {
+		t.Fatal("export silently truncated", err)
+	}
+	source := JobSource{Name: "sample.png", SHA256: Digest([]byte("source")), Width: 512, Height: 512}
+	tooMany := make([]JobSource, 6)
+	for i := range tooMany {
+		tooMany[i] = source
+	}
+	if _, err = s.NewJob("too-many-images-001", "admin", tooMany, recipients, "blind", "", nil); err == nil {
+		t.Fatal("source limit")
+	}
+	if _, err = s.NewJob("duplicate-image-001", "admin", []JobSource{source, source}, recipients, "blind", "", nil); err == nil {
+		t.Fatal("duplicate original")
+	}
+}
+
+func TestRecipientTemplateIsNotRecursive(t *testing.T) {
+	text, err := VisibleText("{name} / {recipient_id}", Recipient{ID: "001", Name: "User {recipient_id}"})
+	if err != nil || text != "User {recipient_id} / 001" {
+		t.Fatal(text, err)
 	}
 }

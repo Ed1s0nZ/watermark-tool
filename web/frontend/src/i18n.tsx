@@ -1,5 +1,20 @@
 import { createContext, useContext } from "react";
 export const zh = {
+  job_template:
+    "请检查可见模板、样式和替换后的文字：仅支持{name}/{recipient_id}，每份最多80字符且单行。",
+  job_font:
+    "可见文字过宽或存在缺字，请缩小字号、更换文字或检查设备字体后重新预览。",
+  sourceID: "原图编号",
+  renderedDigest: "可见层输入摘要",
+  generatedCopy: "已完成生成",
+  pendingCopy: "尚未完成生成",
+  job_invalid:
+    "请检查图片数量/格式/容量、名单和可见文字；过长文字或缺字请先调整。",
+  job_state: "当前任务状态不允许此操作，请刷新任务并核对输入。",
+  archive_expired: "下载已过期，登记仍保留；如需新文件请创建新任务。",
+  archive_unavailable: "成品文件缺失或损坏，登记仍保留。",
+  taskID: "任务编号",
+  sourceName: "原图名称",
   workbench_cancelled: "实验超时或已取消，请缩小图片后重试。",
   batches: "批量副本",
   records: "分发记录",
@@ -50,7 +65,7 @@ export const zh = {
   copies: "副本数",
   completed: "已生成",
   failed: "失败",
-  sourceDigest: "原图摘要",
+  sourceDigest: "原始文件摘要",
   rebuildZIP: "重新生成 ZIP",
   rebuildHint:
     "请重新上传原始图片，摘要必须与原批次一致。保留原标识和密钥，不新增记录；停用密钥的批次无法生成。",
@@ -195,6 +210,24 @@ export const zh = {
 };
 export type Dictionary = Record<keyof typeof zh, string>;
 export const en: Dictionary = {
+  job_template:
+    "Check the visible template, style and resolved text: only {name}/{recipient_id}, up to 80 characters on one line per copy.",
+  job_font:
+    "Visible text is too wide or contains unsupported glyphs. Reduce font size, change text or check device fonts before previewing again.",
+  sourceID: "Source ID",
+  renderedDigest: "Visible-layer input digest",
+  generatedCopy: "Generation completed",
+  pendingCopy: "Generation incomplete",
+  job_invalid:
+    "Check image count/format/capacity, recipients and visible text. Adjust long text or unsupported glyphs.",
+  job_state:
+    "This operation is unavailable in the current task state. Refresh and check the inputs.",
+  archive_expired:
+    "The download expired. Registration remains; create a new task for new files.",
+  archive_unavailable:
+    "The archive is missing or corrupt. Registration remains.",
+  taskID: "Task ID",
+  sourceName: "Source image",
   workbench_cancelled:
     "Experiment timed out or was cancelled. Try a smaller image.",
   batches: "Batch copies",
@@ -252,7 +285,7 @@ export const en: Dictionary = {
   copies: "Copies",
   completed: "Generated",
   failed: "Failed",
-  sourceDigest: "Source digest",
+  sourceDigest: "Original file digest",
   rebuildZIP: "Regenerate ZIP",
   rebuildHint:
     "Reupload the original image with the same digest. IDs and key remain unchanged; no new records are created. Disabled keys cannot regenerate batches.",

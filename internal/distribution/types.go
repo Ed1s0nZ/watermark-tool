@@ -16,6 +16,8 @@ var (
 	ErrMissing    = errors.New("record_not_found")
 	ErrDisabled   = errors.New("key_disabled")
 	ErrState      = errors.New("invalid_key_state")
+	ErrJobState   = errors.New("job_state")
+	ErrTemplate   = errors.New("job_template")
 )
 
 const MaxRecipients = 20

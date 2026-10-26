@@ -19,6 +19,7 @@ import (
 	"github.com/google/uuid"
 
 	"watermark-tool/internal/auth"
+	"watermark-tool/internal/delivery"
 	"watermark-tool/internal/service"
 	_ "watermark-tool/internal/watermark/docx"
 	_ "watermark-tool/internal/watermark/jpg"
@@ -155,6 +156,18 @@ func main() {
 		tempDir = managed.RuntimeDir()
 		defer os.RemoveAll(tempDir)
 	}
+	var tasks *delivery.Manager
+	if managed != nil {
+		options, e := deliveryOptions()
+		if e != nil {
+			log.Fatalf("Invalid task retention configuration: %v", e)
+		}
+		tasks, err = delivery.New(managed, blindSlots, options)
+		if err != nil {
+			log.Fatalf("Task storage unavailable: %v", err)
+		}
+		defer tasks.Close()
+	}
 	r.SetTrustedProxies(nil)
 	sessions := auth.New(os.Getenv("WATERMARK_ADMIN_USER"), os.Getenv("WATERMARK_ADMIN_PASSWORD"), os.Getenv("WATERMARK_COOKIE_SECURE") == "true")
 
@@ -170,11 +183,13 @@ func main() {
 		c.Header("Cache-Control", "no-cache")
 		c.File("web/dist/index.html")
 	})
-	authAPI := r.Group("/api/auth", auth.SameOrigin())
+	authAPI := r.Group("/api/auth", auth.SameOrigin(), auditMiddleware(managed))
 	authAPI.GET("/session", sessions.Session)
 	authAPI.POST("/login", RateLimitMiddleware(), sessions.Login)
 	authAPI.POST("/logout", sessions.Logout)
-	api := r.Group("/api", auth.SameOrigin(), sessions.Require())
+	api := r.Group("/api", auth.SameOrigin(), sessions.Require(), auditMiddleware(managed))
+	registerJobs(api, managed, tasks, tempDir)
+	registerAudit(api, managed, tasks)
 	api.Use(func(c *gin.Context) {
 		if c.Request.Method == http.MethodPost {
 			c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, service.MaxFileSize+(1<<20))
@@ -238,6 +253,7 @@ func main() {
 				return
 			}
 			defer safeRemoveFile(inputPath) // 确保处理完后删除临时文件
+			setAuditFile(c, inputPath)
 
 			// 生成输出文件路径
 			outputPath := filepath.Join(tempDir, outputFilename)
@@ -310,6 +326,7 @@ func main() {
 				return
 			}
 			defer safeRemoveFile(inputPath) // 确保处理完后删除临时文件
+			setAuditFile(c, inputPath)
 
 			// 设置处理超时
 			var watermarkText string

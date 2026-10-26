@@ -127,6 +127,7 @@ func (m *Manager) Login(c *gin.Context) {
 		c.JSON(401, gin.H{"code": "invalid_credentials"})
 		return
 	}
+	c.Set("username", m.username)
 	raw := make([]byte, 32)
 	if _, err := rand.Read(raw); err != nil {
 		c.JSON(500, gin.H{"code": "session_failed"})
@@ -156,6 +157,9 @@ func (m *Manager) Login(c *gin.Context) {
 }
 
 func (m *Manager) Logout(c *gin.Context) {
+	if m.valid(c) {
+		c.Set("username", m.username)
+	}
 	if token, err := c.Cookie(cookieName); err == nil {
 		m.mu.Lock()
 		delete(m.sessions, sha256.Sum256([]byte(token)))

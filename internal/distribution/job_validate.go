@@ -19,7 +19,7 @@ func (s *Store) validateJobs() error {
 		}
 	}
 	for _, j := range s.jobs {
-		if !auditID.MatchString(j.ID) || len(j.ID) != 32 || ids[j.ID] || !ValidDigest(j.RequestHash) || requests[j.RequestHash] || !ValidDigest(j.Fingerprint) || !keys[j.KeyID] || j.Algorithm != blind.Algorithm || j.CreatedAt.IsZero() || j.UpdatedAt.IsZero() || j.Operator == "" || len(j.Operator) > 256 || !utf8.ValidString(j.Operator) || j.LastActor == "" || len(j.LastActor) > 256 || !utf8.ValidString(j.LastActor) || len(j.Sources) < 1 || len(j.Sources) > MaxSources || len(j.Copies) < 1 || len(j.Copies) > 100 || j.Total != len(j.Copies) || j.Done < 0 || j.Done > j.Total || j.Attempts < 0 {
+		if len(j.UploadToken) != 32 || !auditID.MatchString(j.UploadToken) || !auditID.MatchString(j.ID) || len(j.ID) != 32 || ids[j.ID] || !ValidDigest(j.RequestHash) || requests[j.RequestHash] || !ValidDigest(j.Fingerprint) || !keys[j.KeyID] || j.Algorithm != blind.Algorithm || j.CreatedAt.IsZero() || j.UpdatedAt.IsZero() || j.Operator == "" || len(j.Operator) > 256 || !utf8.ValidString(j.Operator) || j.LastActor == "" || len(j.LastActor) > 256 || !utf8.ValidString(j.LastActor) || len(j.Sources) < 1 || len(j.Sources) > MaxSources || len(j.Copies) < 1 || len(j.Copies) > 100 || j.Total != len(j.Copies) || j.Done < 0 || j.Done > j.Total || j.Attempts < 0 {
 			return ErrStore
 		}
 		ids[j.ID] = true

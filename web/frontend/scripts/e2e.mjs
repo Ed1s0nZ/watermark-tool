@@ -11,7 +11,13 @@ const cli = fileURLToPath(
 const suites =
   process.argv.length > 2
     ? [process.argv.slice(2)]
-    : [["platform.spec.ts"], ["distribution.spec.ts"], ["workbench.spec.ts"]];
+    : [
+        ["platform.spec.ts"],
+        ["distribution.spec.ts"],
+        ["workbench.spec.ts"],
+        ["jobs.spec.ts"],
+        ["jobs-cancel.spec.ts"],
+      ];
 try {
   for (const [index, suite] of suites.entries()) {
     const run = spawnSync(process.execPath, [cli, "test", ...suite], {

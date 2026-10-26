@@ -40,7 +40,7 @@ flowchart LR
 | Job | id32hex、request_hash、fingerprint、operator、last_actor、created_at、key_id、algorithm、mode、template_text、style快照 | 同请求同输入复用；原始幂等键不落盘 |
 | Source | id32hex、name<=255B、source_sha256、width/height、uploaded | 1～5张，摘要唯一；实际上传核验，源图总大小<=128MiB |
 | JobCopy | id32hex、source_id、recipient_id/name、rendered_sha256可空、input_uploaded | 全矩阵<=100，标识独立；原图与渲染摘要分开 |
-| Job state | status、phase、done/total、attempts、error、generated、archive_sha256/size、expires_at | preparing/queued/processing/cancelling/completed/failed/cancelled/interrupted；下载状态独立计算 |
+| Job state | upload_token32hex（取消/终态/恢复时换代，拒绝迟到上传）、status、phase、done/total、attempts、error、generated、archive_sha256/size、expires_at | preparing/queued/processing/cancelling/completed/failed/cancelled/interrupted；下载状态独立计算 |
 | AuditEvent | sequence、id、at、actor、action、target、attempt/correlation、outcome、code | 仅受控动作及错误码，目标只用服务端标识；无正文/名单/凭据/搜索词 |
 
 模板只允许{name}/{recipient_id}，替换后沿用可见文字80字符/单行及样式限制。原图和渲染图尺寸相同；仅双水印需要逐份渲染输入，未渲染模式直接使用原图。使用现有密钥版本固定时间和ID。开始后切换/停用不撤销当前执行快照；停用阻止新的Start/Retry。未开始或重试时校验版本仍可用。
@@ -51,9 +51,9 @@ flowchart LR
 
 - runtime：请求暂存，启动继续清理。
 - jobs-inputs/<jobID>：原图和rendered输入，单任务<=512MiB；任务终态删除。准备中最多15分钟，过期标失败；重启未完成任务标interrupted，清理输入，明确要求重传。
-- artifacts/<jobID>.zip：完整包，最大128MiB，完成起60分钟有效；请求结束/正常重启不删除；启动及周期清理到期文件，未知/部分包清理。下载核对长度/摘要；缺失/损坏标unavailable，不修改generated事实。
+- artifacts/<jobID>.zip：完整包，最大128MiB，默认完成起60分钟有效；可显式配置WATERMARK_JOB_ARCHIVE_TTL_SECONDS为1～3600以缩短（不能延长）留存，非法值启动失败；请求结束/正常重启不删除；启动及周期清理到期文件，未知/部分包清理。下载核对长度/摘要；缺失/损坏标unavailable，不修改generated事实。
 - 全部任务文件总预算2GiB；非终态任务最多4，后台最多2并复用全局盲水印两槽，逐份解码/生成，不把100张图同时放内存。原图每张<=50MiB/8MP，总源文件<=128MiB。
-- HTTP每次上传一张<=50MiB，逐份累计限制而非单次超大multipart。输入上传不套每分钟10次业务动作额度（100份无法完成），但有认证、槽位/队列/字节预算及只接受快照定义的有限文件；任务创建/启动/重试/取消/下载仍受现有动作限流。
+- HTTP每次上传一张<=50MiB，逐份累计限制而非单次超大multipart。输入上传不套每分钟10次业务动作额度（100份无法完成），但有认证、槽位/队列/字节预算及只接受快照定义的有限文件；输入上传另限全局240次/分钟；任务创建/启动/重试/取消/下载仍受现有动作限流。
 - Worker真实生成并提取每份标识后更新done，进度可为内存观察值，终态与登记原子持久化；重启在途状态标中断，不伪装继续。成功打包、fsync成品后提交completed/generated及审计，才允许下载；事务失败未确认的孤儿包不交付。
 - ZIP以安全编号目录分接收人，随机标识PNG命名；manifest包含源ID/原文件名、接收人/副本ID及密钥，CSV防公式。取消/失败删除部分包。任何已生成包不代表实际送达。
 - 显式取消设置cancelling并取消上下文；当前单次编解码/嵌入完成后退出。关页不取消已启动任务。正常关闭取消worker并标中断，等待释放后关闭Store。
@@ -62,8 +62,9 @@ flowchart LR
 
 | 路径 | 输入 | 输出 |
 | --- | --- | --- |
+| POST /api/jobs/preview-plan | JSON recipients_csv、mode、template_text、style | 非持久预校验与规范名单，供创建前逐图/逐人预览；不登记任务 |
 | POST /api/jobs | JSON sources[{name,source_sha256,width,height}]、recipients_csv、mode、template_text、style；Idempotency-Key | Job preparing，固定Source/Copy标识 |
-| POST /api/jobs/:id/inputs | multipart file、source_id、可选copy_id | 核验输入并标uploaded；重复同内容幂等，不同内容409 |
+| POST /api/jobs/:id/inputs | multipart file、source_id、可选copy_id；X-Upload-Token来自当前任务快照 | 核验输入并标uploaded；重复同内容幂等，不同内容409 |
 | POST /api/jobs/:id/start /retry | 无正文 | queued；已在执行不重复启动；完成不可重试 |
 | POST /api/jobs/:id/cancel | 无正文 | cancelled/cancelling |
 | GET /api/jobs/:id | 无 | 实际任务/进度及download_state |

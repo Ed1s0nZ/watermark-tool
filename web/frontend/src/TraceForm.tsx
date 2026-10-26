@@ -8,6 +8,7 @@ import {
   Space,
   Typography,
 } from "antd";
+import { RecordOrigin } from "./RecordOrigin";
 import { ReportVerifier } from "./Reports";
 import { api } from "./api";
 import { ErrorNotice } from "./ErrorNotice";
@@ -118,13 +119,15 @@ export function TraceForm({ active }: { active: boolean }) {
                       },
                       {
                         key: "batch",
-                        label: t.batchID,
-                        children: result.record.batch_id,
+                        label: result.record.job_id ? t.taskID : t.batchID,
+                        children:
+                          result.record.job_id || result.record.batch_id,
                       },
                     ]
                   : []),
               ]}
             />
+            {result.record?.job_id && <RecordOrigin record={result.record} />}
             <Typography.Text type="secondary">{t.traceCaution}</Typography.Text>
           </>
         )}

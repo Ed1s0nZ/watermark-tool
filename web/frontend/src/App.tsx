@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Button, ConfigProvider, Space, Spin, theme } from "antd";
 import zhCN from "antd/locale/zh_CN";
 import enUS from "antd/locale/en_US";
-import { api, APIError, User } from "./api";
+import { api, APIError, User, advanceAuthEpoch } from "./api";
 import { en, I18n, zh } from "./i18n";
 import { Language, Mode } from "./Preferences";
 import { Login } from "./Login";
@@ -60,6 +60,7 @@ export function App() {
   }, [language]);
   useEffect(() => {
     const expire = () => {
+      advanceAuthEpoch();
       setUser(undefined);
       setExpired(true);
     };
@@ -67,6 +68,7 @@ export function App() {
     return () => window.removeEventListener("session-expired", expire);
   }, []);
   function onLogin(next: User) {
+    advanceAuthEpoch();
     setUser(next);
     setLastUser(next);
     setExpired(false);
@@ -137,10 +139,13 @@ export function App() {
             {lastUser && (
               <div hidden={!user}>
                 <Shell
+                  key={lastUser.username}
+                  active={!!user}
                   user={lastUser}
                   {...preferences}
                   onLogout={async () => {
                     await api("/auth/logout", { method: "POST" });
+                    advanceAuthEpoch();
                     setUser(undefined);
                     setLastUser(undefined);
                     setExpired(false);

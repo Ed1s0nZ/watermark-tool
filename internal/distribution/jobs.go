@@ -36,13 +36,17 @@ func ValidStyle(s map[string]any) bool {
 	return (mode == "single" || mode == "tile") && strings.Contains("|topLeft|topRight|center|bottomLeft|bottomRight|", "|"+position+"|") && position != "" && regexp.MustCompile(`^#[a-fA-F0-9]{6}$`).MatchString(color) && a && size >= 12 && size <= 96 && b && opacity >= 0.05 && opacity <= 1 && c && angle >= -90 && angle <= 90
 }
 func VisibleText(template string, r Recipient) (string, error) {
-	text := strings.ReplaceAll(strings.ReplaceAll(template, "{name}", r.Name), "{recipient_id}", r.ID)
-	if !utf8.ValidString(text) || strings.TrimSpace(text) == "" || utf8.RuneCountInString(text) > 80 || strings.ContainsAny(text, "{}") {
-		return "", ErrRecipients
+	probe := strings.NewReplacer("{name}", "", "{recipient_id}", "").Replace(template)
+	if strings.ContainsAny(probe, "{}") {
+		return "", ErrTemplate
+	}
+	text := strings.NewReplacer("{name}", r.Name, "{recipient_id}", r.ID).Replace(template)
+	if !utf8.ValidString(text) || strings.TrimSpace(text) == "" || utf8.RuneCountInString(text) > 80 {
+		return "", ErrTemplate
 	}
 	for _, c := range text {
 		if unicode.IsControl(c) || unicode.Is(unicode.Cf, c) {
-			return "", ErrRecipients
+			return "", ErrTemplate
 		}
 	}
 	return text, nil
@@ -83,7 +87,7 @@ func (s *Store) NewJob(request, actor string, sources []JobSource, recipients []
 		}
 	}
 	if mode == "dual" && !ValidStyle(style) {
-		return Job{}, ErrRecipients
+		return Job{}, ErrTemplate
 	}
 	if mode == "blind" {
 		text = ""
@@ -153,6 +157,9 @@ func (s *Store) NewJob(request, actor string, sources []JobSource, recipients []
 			}
 			job.Copies = append(job.Copies, JobCopy{Copy: Copy{cid, r}, SourceID: sid})
 		}
+	}
+	if err = rotateUpload(&job); err != nil {
+		return Job{}, err
 	}
 	job = cloneJob(job)
 	next := s.jobsSnapshot()

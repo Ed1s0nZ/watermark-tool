@@ -23,6 +23,7 @@ export function validStyle(v: unknown): v is Style {
   const s = v as Style;
   return (
     !!s &&
+    Object.keys(s).length === 6 &&
     ["single", "tile"].includes(s.mode) &&
     ["topLeft", "topRight", "center", "bottomLeft", "bottomRight"].includes(
       s.position,
@@ -75,7 +76,7 @@ export function storeTemplates(items: Template[]) {
     }),
   );
 }
-function dimensions(b: Uint8Array): [number, number] {
+export function dimensions(b: Uint8Array): [number, number] {
   const v = new DataView(b.buffer, b.byteOffset, b.byteLength);
   if (
     b.length >= 24 &&

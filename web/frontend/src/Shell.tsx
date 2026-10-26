@@ -34,6 +34,10 @@ import { WatermarkPage } from "./WatermarkPage";
 import { LabPage } from "./LabPage";
 import { DualPage } from "./DualPage";
 import { useWorkbenchText } from "./workbenchText";
+import { JobsPage } from "./JobsPage";
+import { AuditPage } from "./AuditPage";
+import { AuditBanner } from "./AuditBanner";
+import { useJobText } from "./jobText";
 import { Settings } from "./Settings";
 import { BatchPage } from "./BatchPage";
 import { RecordsPage } from "./RecordsPage";
@@ -41,6 +45,8 @@ import { KeysPage } from "./KeysPage";
 import { ErrorNotice } from "./ErrorNotice";
 const pages = [
   "overview",
+  "jobs",
+  "audit",
   "lab",
   "dual",
   "add",
@@ -57,11 +63,17 @@ function currentPage(): Page {
 }
 export function Shell({
   user,
+  active = true,
   onLogout,
   ...preferences
-}: PreferencesProps & { user: User; onLogout: () => Promise<void> }) {
+}: PreferencesProps & {
+  user: User;
+  active?: boolean;
+  onLogout: () => Promise<void>;
+}) {
   const t = useText();
   const wt = useWorkbenchText();
+  const jt = useJobText();
   const contentRef = useRef<HTMLDivElement>(null);
   const { token } = theme.useToken();
   const [page, setPage] = useState<Page>(currentPage);
@@ -136,6 +148,12 @@ export function Shell({
       icon: <FileProtectOutlined aria-hidden="true" />,
       label: wt.dual,
     },
+    { key: "jobs", icon: <CopyOutlined aria-hidden="true" />, label: jt.jobs },
+    {
+      key: "audit",
+      icon: <DatabaseOutlined aria-hidden="true" />,
+      label: jt.audit,
+    },
     { key: "keys", icon: <KeyOutlined aria-hidden="true" />, label: t.keys },
     {
       key: "settings",
@@ -192,7 +210,7 @@ export function Shell({
         <div className="sidebar-section">
           {!collapsed ? t.workspace : "···"}
         </div>
-        {nav}
+        <div className="sidebar-navigation">{nav}</div>
         <div className="sidebar-bottom">
           <div className="sidebar-status">
             <span className="status-dot" />
@@ -242,7 +260,15 @@ export function Shell({
               onClick={() => setMobile(true)}
             />
             <Typography.Text strong>
-              {page === "lab" ? wt.lab : page === "dual" ? wt.dual : t[page]}
+              {page === "lab"
+                ? wt.lab
+                : page === "dual"
+                  ? wt.dual
+                  : page === "jobs"
+                    ? jt.jobs
+                    : page === "audit"
+                      ? jt.audit
+                      : t[page]}
             </Typography.Text>
           </Space>
           <div className="topbar-actions">
@@ -288,6 +314,7 @@ export function Shell({
         </Layout.Header>
         <Layout.Content className="content" ref={contentRef}>
           <div className="content-inner">
+            <AuditBanner active={active} />
             <ErrorNotice error={logoutError} />
             {typeError && (
               <Alert
@@ -315,13 +342,15 @@ export function Shell({
               <BatchPage />
             </div>
             <div hidden={page !== "records"}>
-              <RecordsPage active={page === "records"} />
+              <RecordsPage active={active && page === "records"} />
             </div>
             <div hidden={page !== "keys"}>
-              <KeysPage active={page === "keys"} />
+              <KeysPage active={active && page === "keys"} />
             </div>
-            {page === "lab" && <LabPage active />}
-            {page === "dual" && <DualPage active />}
+            {active && page === "jobs" && <JobsPage />}
+            {active && page === "audit" && <AuditPage />}
+            {active && page === "lab" && <LabPage active />}
+            {active && page === "dual" && <DualPage active />}
             <div hidden={page !== "settings"}>
               <Settings username={user.username} {...preferences} />
             </div>

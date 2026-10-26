@@ -21,7 +21,7 @@ func (s *Store) commitJob(next []Job, index int, actor, action, outcome, code st
 func uploadState(status string) bool {
 	return status == "preparing" || status == "failed" || status == "cancelled" || status == "interrupted"
 }
-func (s *Store) JobInput(id, sourceID, copyID, digest string, size int64) (Job, error) {
+func (s *Store) JobInput(id, sourceID, copyID, digest string, size int64, tokens ...string) (Job, error) {
 	if !ValidDigest(digest) || size <= 0 || size > 50<<20 {
 		return Job{}, ErrRecipients
 	}
@@ -36,8 +36,11 @@ func (s *Store) JobInput(id, sourceID, copyID, digest string, size int64) (Job, 
 	}
 	next := s.jobsSnapshot()
 	j := &next[i]
+	if len(tokens) > 0 && tokens[0] != j.UploadToken {
+		return Job{}, ErrConflict
+	}
 	if !uploadState(j.Status) || j.Generated {
-		return Job{}, ErrState
+		return Job{}, ErrJobState
 	}
 	sourceIndex := -1
 	for n, src := range j.Sources {
@@ -57,7 +60,7 @@ func (s *Store) JobInput(id, sourceID, copyID, digest string, size int64) (Job, 
 		src.Bytes = size
 	} else {
 		if j.Mode != "dual" {
-			return Job{}, ErrState
+			return Job{}, ErrJobState
 		}
 		found := false
 		for n, c := range j.Copies {
@@ -86,6 +89,7 @@ func (s *Store) JobInput(id, sourceID, copyID, digest string, size int64) (Job, 
 	if original > MaxSourceBytes || total > MaxJobInputBytes {
 		return Job{}, ErrLimit
 	}
+	j.UpdatedAt = time.Now().UTC()
 	if err := s.commitPlatform(s.data, s.keys, next); err != nil {
 		return Job{}, err
 	}
@@ -110,7 +114,7 @@ func (s *Store) QueueJob(id, actor string, retry bool) (Job, error) {
 		return publicJob(*j), nil
 	}
 	if j.Generated || !uploadState(j.Status) || !retry && j.Status != "preparing" || retry && j.Status == "preparing" {
-		return Job{}, ErrState
+		return Job{}, ErrJobState
 	}
 	for _, k := range s.keys.Keys {
 		if k.ID == j.KeyID && k.State == "disabled" {
@@ -119,13 +123,13 @@ func (s *Store) QueueJob(id, actor string, retry bool) (Job, error) {
 	}
 	for _, src := range j.Sources {
 		if !src.Uploaded {
-			return Job{}, ErrState
+			return Job{}, ErrJobState
 		}
 	}
 	if j.Mode == "dual" {
 		for _, c := range j.Copies {
 			if !c.Uploaded {
-				return Job{}, ErrState
+				return Job{}, ErrJobState
 			}
 		}
 	}
@@ -163,7 +167,7 @@ func (s *Store) StartJob(id string) (Job, []byte, error) {
 	next := s.jobsSnapshot()
 	j := &next[i]
 	if j.Status != "queued" {
-		return Job{}, nil, ErrState
+		return Job{}, nil, ErrJobState
 	}
 	var secret []byte
 	for _, k := range s.keys.Keys {
@@ -191,10 +195,10 @@ func (s *Store) JobProgress(id string, done int, phase string) error {
 	}
 	j := &s.jobs[i]
 	if j.Status != "processing" && j.Status != "cancelling" {
-		return ErrState
+		return ErrJobState
 	}
 	if done < j.Done || done > j.Total || (phase != "generating" && phase != "packing") {
-		return ErrState
+		return ErrJobState
 	}
 	// Volatile observed progress is only promoted in a later atomic snapshot; recovery marks interrupted.
 	j.Done = done
@@ -216,15 +220,24 @@ func (s *Store) CancelJob(id, actor string) (Job, error) {
 	if !pendingJob(j.Status) || j.Status == "cancelling" {
 		return publicJob(*j), nil
 	}
+	if err := rotateUpload(j); err != nil {
+		return Job{}, err
+	}
 	if j.Status == "processing" || j.Status == "cancelling" {
 		j.Status = "cancelling"
 	} else {
 		j.Status = "cancelled"
 		j.Phase = "finished"
+		for n := range j.Sources {
+			j.Sources[n].Uploaded = false
+		}
+		for n := range j.Copies {
+			j.Copies[n].Uploaded = false
+		}
 	}
 	return s.commitJob(next, i, actor, "task.cancel", j.Status, "")
 }
-func (s *Store) FinishJob(id, status, code, archiveHash string, archiveBytes int64) (Job, error) {
+func (s *Store) FinishJob(id, status, code, archiveHash string, archiveBytes int64, lifetimes ...time.Duration) (Job, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.poisoned {
@@ -237,10 +250,10 @@ func (s *Store) FinishJob(id, status, code, archiveHash string, archiveBytes int
 	next := s.jobsSnapshot()
 	j := &next[i]
 	if j.Status != "processing" && j.Status != "cancelling" {
-		return Job{}, ErrState
+		return Job{}, ErrJobState
 	}
 	if status != "completed" && status != "failed" && status != "cancelled" && status != "interrupted" {
-		return Job{}, ErrState
+		return Job{}, ErrJobState
 	}
 	if j.Status == "cancelling" {
 		status = "cancelled"
@@ -248,12 +261,28 @@ func (s *Store) FinishJob(id, status, code, archiveHash string, archiveBytes int
 	}
 	if status == "completed" {
 		if j.Done != j.Total || !ValidDigest(archiveHash) || archiveBytes <= 0 || archiveBytes > MaxArchiveBytes {
-			return Job{}, ErrState
+			return Job{}, ErrJobState
 		}
 		j.Generated = true
 		j.ArchiveSHA256 = archiveHash
 		j.ArchiveBytes = archiveBytes
-		j.ExpiresAt = time.Now().UTC().Add(time.Hour)
+		ttl := time.Hour
+		if len(lifetimes) > 0 {
+			ttl = lifetimes[0]
+		}
+		if ttl < time.Second || ttl > time.Hour {
+			return Job{}, ErrConfig
+		}
+		j.ExpiresAt = time.Now().UTC().Add(ttl)
+	}
+	for n := range j.Sources {
+		j.Sources[n].Uploaded = false
+	}
+	for n := range j.Copies {
+		j.Copies[n].Uploaded = false
+	}
+	if err := rotateUpload(j); err != nil {
+		return Job{}, err
 	}
 	j.Status = status
 	j.Error = code
@@ -270,6 +299,9 @@ func (s *Store) RecoverJobs() error {
 	events := []AuditEvent{}
 	for i, j := range next {
 		if pendingJob(j.Status) {
+			if err := rotateUpload(&next[i]); err != nil {
+				return err
+			}
 			next[i].Status = "interrupted"
 			next[i].Phase = "finished"
 			next[i].Error = "interrupted"
@@ -306,4 +338,68 @@ func (s *Store) ClearJobInputs(id string) error {
 		next[i].Copies[n].Uploaded = false
 	}
 	return s.commitPlatform(s.data, s.keys, next)
+}
+
+func (s *Store) AllJobs() ([]Job, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.poisoned {
+		return nil, ErrStore
+	}
+	out := make([]Job, len(s.jobs))
+	for i, j := range s.jobs {
+		out[i] = publicJob(j)
+	}
+	return out, nil
+}
+func (s *Store) PendingJobs() ([]Job, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.poisoned {
+		return nil, ErrStore
+	}
+	out := []Job{}
+	for _, j := range s.jobs {
+		if pendingJob(j.Status) {
+			out = append(out, publicJob(j))
+		}
+	}
+	return out, nil
+}
+func (s *Store) FailPreparing(id, code string) (Job, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.poisoned {
+		return Job{}, ErrStore
+	}
+	i := s.jobIndex(id)
+	if i < 0 {
+		return Job{}, ErrMissing
+	}
+	next := s.jobsSnapshot()
+	if next[i].Status != "preparing" {
+		return publicJob(next[i]), nil
+	}
+	if err := rotateUpload(&next[i]); err != nil {
+		return Job{}, err
+	}
+	next[i].Status = "failed"
+	next[i].Phase = "finished"
+	next[i].Error = code
+	for n := range next[i].Sources {
+		next[i].Sources[n].Uploaded = false
+	}
+	for n := range next[i].Copies {
+		next[i].Copies[n].Uploaded = false
+	}
+	return s.commitJob(next, i, "system", "task.expire", "failed", code)
+}
+
+func rotateUpload(j *Job) error {
+	token, err := randomID(16)
+	if err != nil {
+		return err
+	}
+	j.UploadToken = token
+	return nil
 }

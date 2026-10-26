@@ -273,14 +273,14 @@ test("authenticated platform, watermark round trip, preferences and mobile navig
     .locator("input[type=file]")
     .setInputFiles({ name: "draft.png", mimeType: "image/png", buffer: file });
   await page.request.post("/api/auth/logout");
-  await page.getByRole("button", { name: "Create watermarked file" }).click();
+  // Authenticated status polling detects revocation without another file operation.
   await expect(
     page
       .getByText("Your session has expired. Please sign in again.", {
         exact: true,
       })
       .first(),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 10000 });
   await page.getByLabel("Username", { exact: true }).fill("admin");
   await page
     .getByLabel("Password", { exact: true })

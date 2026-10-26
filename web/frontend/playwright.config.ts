@@ -33,6 +33,8 @@ export default defineConfig({
     reuseExistingServer: false,
     env: {
       PORT: "18080",
+      WATERMARK_COOKIE_SECURE: "false",
+      WATERMARK_JOB_ARCHIVE_TTL_SECONDS: "3600",
       WATERMARK_DATA_DIR: dataDirectory,
       WATERMARK_DATA_KEY: "2a".repeat(32),
       WATERMARK_ADMIN_USER: "admin",

@@ -12,26 +12,28 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
 
 type Store struct {
-	unified   bool
-	jobs      []Job
-	audit     []AuditEvent
-	sequence  uint64
-	keyActor  string
-	lastBytes int
-	mu        sync.Mutex
-	dir       string
-	master    []byte
-	lock      *os.File
-	data      state
-	keys      keyState
-	busy      map[string]bool
-	poisoned  bool
-	write     func(string, []byte) error
+	auditFault bool
+	unified    bool
+	jobs       []Job
+	audit      []AuditEvent
+	sequence   uint64
+	keyActor   string
+	lastBytes  int
+	mu         sync.Mutex
+	dir        string
+	master     []byte
+	lock       *os.File
+	data       state
+	keys       keyState
+	busy       map[string]bool
+	poisoned   bool
+	write      func(string, []byte) error
 }
 
 func atomicWrite(path string, data []byte) error {
@@ -329,6 +331,21 @@ func Open(dir string, master, legacy []byte) (store *Store, err error) {
 }
 func (s *Store) RuntimeDir() string { return filepath.Join(s.dir, "runtime") }
 func (s *Store) prepareRuntime() error {
+	entries, err := os.ReadDir(s.dir)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), ".txn-") {
+			info, e := os.Lstat(filepath.Join(s.dir, entry.Name()))
+			if e != nil || !info.Mode().IsRegular() || info.Mode().Perm()&0077 != 0 || info.Size() > maxStateBytes {
+				return ErrStore
+			}
+			if e = os.Remove(filepath.Join(s.dir, entry.Name())); e != nil {
+				return e
+			}
+		}
+	}
 	path := s.RuntimeDir()
 	info, err := os.Lstat(path)
 	if err == nil {

@@ -40,6 +40,7 @@ func blindError(c *gin.Context, err error) {
 	if errors.Is(err, blind.ErrKey) {
 		status = 503
 	}
+	c.Set("audit_code", code)
 	c.JSON(status, gin.H{"code": code, "error": code})
 }
 func handleBlind(c *gin.Context, tempDir string, add bool, stores ...*distribution.Store) {
@@ -77,6 +78,7 @@ func handleBlind(c *gin.Context, tempDir string, add bool, stores ...*distributi
 		c.JSON(500, gin.H{"code": "requestError"})
 		return
 	}
+	setAuditFile(c, input)
 	c.Header("X-Watermark-Algorithm", blind.Algorithm)
 	if add {
 		output := filepath.Join(tempDir, generateUniqueFilename("output.png"))

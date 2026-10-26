@@ -27,7 +27,7 @@ func NewEvent(actor, action, target, outcome, code string) AuditEvent {
 	if actor == "" {
 		actor = "system"
 	}
-	if target != "platform" && target != "legacy-env" && !auditID.MatchString(target) {
+	if target != "platform" && target != "legacy-env" && !auditID.MatchString(target) && !ValidDigest(target) {
 		target = ""
 	}
 	if code != "" && !auditWord.MatchString(code) {
@@ -39,7 +39,7 @@ func validateEvent(e AuditEvent) error {
 	if !auditID.MatchString(e.ID) || !auditID.MatchString(e.Correlation) || e.At.IsZero() || e.Actor == "" || len(e.Actor) > 256 || !utf8.ValidString(e.Actor) || !auditWord.MatchString(e.Action) || !auditWord.MatchString(e.Outcome) || e.Code != "" && !auditWord.MatchString(e.Code) {
 		return ErrRecipients
 	}
-	if e.Target != "" && e.Target != "platform" && e.Target != "legacy-env" && !auditID.MatchString(e.Target) {
+	if e.Target != "" && e.Target != "platform" && e.Target != "legacy-env" && !auditID.MatchString(e.Target) && !ValidDigest(e.Target) {
 		return ErrRecipients
 	}
 	return nil
@@ -50,7 +50,11 @@ func (s *Store) Audit(actor, action, target, outcome, code string) error {
 	if s.noNewWrites() {
 		return ErrLimit
 	}
-	return s.commitPlatform(s.data, s.keys, s.jobs, NewEvent(actor, action, target, outcome, code))
+	err := s.commitPlatform(s.data, s.keys, s.jobs, NewEvent(actor, action, target, outcome, code))
+	if err != nil {
+		s.auditFault = true
+	}
+	return err
 }
 
 type AuditFilter struct {
@@ -84,13 +88,13 @@ func (s *Store) AuditSearch(f AuditFilter, export bool) ([]AuditEvent, int, erro
 			return nil, 0, ErrRecipients
 		}
 	}
-	if !to.IsZero() && !from.IsZero() && to.Before(from) {
+	if f.To != "" && f.From != "" && to.Before(from) {
 		return nil, 0, ErrRecipients
 	}
 	out := []AuditEvent{}
 	for i := len(s.audit) - 1; i >= 0; i-- {
 		e := s.audit[i]
-		if !from.IsZero() && e.At.Before(from) || !to.IsZero() && e.At.After(to) || f.Actor != "" && e.Actor != f.Actor || f.Action != "" && e.Action != f.Action || f.Outcome != "" && e.Outcome != f.Outcome {
+		if f.From != "" && e.At.Before(from) || f.To != "" && e.At.After(to) || f.Actor != "" && e.Actor != f.Actor || f.Action != "" && e.Action != f.Action || f.Outcome != "" && e.Outcome != f.Outcome {
 			continue
 		}
 		out = append(out, e)

@@ -30,6 +30,8 @@ const env = {
   WATERMARK_DATA_DIR: data,
   WATERMARK_DATA_KEY: master,
   WATERMARK_BLIND_KEY: "07".repeat(32),
+  WATERMARK_JOB_ARCHIVE_TTL_SECONDS: "8",
+  WATERMARK_COOKIE_SECURE: "false",
 };
 const hash = (b) => createHash("sha256").update(b).digest("hex");
 function launch(configuration) {
@@ -187,10 +189,208 @@ try {
     hash(readFileSync(join(root, "internal/blind/testdata/clean.png"))),
     before,
   );
+  // A real background task retains its completed archive across process restart,
+  // then expires the file without revoking its registered copies.
+  await start();
+  await login();
+  const taskResponse = await fetch(base + "/api/jobs", {
+    method: "POST",
+    headers: {
+      Cookie: cookie,
+      "Content-Type": "application/json",
+      "Idempotency-Key": "process-job-request-0001",
+    },
+    body: JSON.stringify({
+      sources: [
+        {
+          name: "public-job.png",
+          source_sha256: before,
+          width: source.readUInt32BE(16),
+          height: source.readUInt32BE(20),
+        },
+      ],
+      recipients_csv:
+        "recipient_id,name\n001,PUBLIC_JOB_PERSON_A\n002,PUBLIC_JOB_PERSON_B",
+      mode: "blind",
+    }),
+  });
+  assert.equal(taskResponse.status, 201);
+  const task = await taskResponse.json();
+  const upload = new FormData();
+  upload.append("file", new Blob([source]), "original.png");
+  upload.append("source_id", task.sources[0].id);
+  const uploaded = await fetch(base + "/api/jobs/" + task.id + "/inputs", {
+    method: "POST",
+    headers: { Cookie: cookie, "X-Upload-Token": task.upload_token },
+    body: upload,
+  });
+  assert.equal(uploaded.status, 200);
+  await uploaded.json();
+  await json("/jobs/" + task.id + "/start", {});
+  let completed;
+  for (let i = 0; i < 100; i++) {
+    completed = await (
+      await fetch(base + "/api/jobs/" + task.id, {
+        headers: { Cookie: cookie },
+      })
+    ).json();
+    if (completed.status === "completed") break;
+    assert.notEqual(completed.status, "failed");
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  assert.equal(completed.generated, true);
+  const firstArchive = await fetch(base + "/api/jobs/" + task.id + "/archive", {
+    headers: { Cookie: cookie },
+  });
+  assert.equal(firstArchive.status, 200);
+  const taskZIP = Buffer.from(await firstArchive.arrayBuffer());
+  assert.equal(hash(taskZIP), completed.archive_sha256);
+  await stop();
+  assert.equal(existsSync(join(data, "artifacts", task.id + ".zip")), true);
+  await start();
+  await login();
+  const again = await fetch(base + "/api/jobs/" + task.id + "/archive", {
+    headers: { Cookie: cookie },
+  });
+  assert.equal(again.status, 200);
+  assert.equal(hash(Buffer.from(await again.arrayBuffer())), hash(taskZIP));
+  for (
+    let i = 0;
+    i < 120 && existsSync(join(data, "artifacts", task.id + ".zip"));
+    i++
+  )
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  const expired = await fetch(base + "/api/jobs/" + task.id + "/archive", {
+    headers: { Cookie: cookie },
+  });
+  assert.equal(expired.status, 410);
+  await expired.json();
+  assert.equal(existsSync(join(data, "artifacts", task.id + ".zip")), false);
+  const traceBody = new FormData();
+  traceBody.append("file", new Blob([firstPNG(taskZIP)]), "old-copy.png");
+  const registered = await fetch(base + "/api/platform/trace", {
+    method: "POST",
+    headers: { Cookie: cookie },
+    body: traceBody,
+  });
+  assert.equal(registered.status, 200);
+  const retained = await registered.json();
+  assert.equal(retained.match, "registered");
+  assert.equal(retained.record.job_id, task.id);
+  const audit = await json("/audit/search", {
+    action: "task.create",
+    page: 1,
+    page_size: 100,
+  });
+  assert.equal(audit.items.filter((e) => e.target === task.id).length, 1);
+  assert.ok(!JSON.stringify(audit).includes("PUBLIC_JOB_PERSON"));
+
+  const crashCSV =
+    "recipient_id,name\n" +
+    Array.from({ length: 20 }, (_, i) => `${i + 1},PUBLIC_CRASH_${i + 1}`).join(
+      "\n",
+    );
+  const pendingResponse = await fetch(base + "/api/jobs", {
+    method: "POST",
+    headers: {
+      Cookie: cookie,
+      "Content-Type": "application/json",
+      "Idempotency-Key": "crash-job-request-0001",
+    },
+    body: JSON.stringify({
+      sources: [
+        {
+          name: "crash-source.png",
+          source_sha256: before,
+          width: source.readUInt32BE(16),
+          height: source.readUInt32BE(20),
+        },
+      ],
+      recipients_csv: crashCSV,
+      mode: "blind",
+    }),
+  });
+  assert.equal(pendingResponse.status, 201);
+  const pendingTask = await pendingResponse.json();
+  async function sendInput(task) {
+    const form = new FormData();
+    form.append("source_id", task.sources[0].id);
+    form.append("file", new Blob([source]), "original.png");
+    const response = await fetch(base + "/api/jobs/" + task.id + "/inputs", {
+      method: "POST",
+      headers: { Cookie: cookie, "X-Upload-Token": task.upload_token },
+      body: form,
+    });
+    assert.equal(response.status, 200);
+    await response.json();
+  }
+  await sendInput(pendingTask);
+  await json("/jobs/" + pendingTask.id + "/start", {});
+  let processing;
+  for (let i = 0; i < 200; i++) {
+    processing = await (
+      await fetch(base + "/api/jobs/" + pendingTask.id, {
+        headers: { Cookie: cookie },
+      })
+    ).json();
+    if (processing.status === "processing") break;
+    assert.notEqual(processing.status, "completed");
+    await new Promise((resolve) => setTimeout(resolve, 10));
+  }
+  assert.equal(processing.status, "processing");
+  const killed = child;
+  child = undefined;
+  killed.kill("SIGKILL");
+  await once(killed, "exit");
+  await start();
+  await login();
+  const recovered = await (
+    await fetch(base + "/api/jobs/" + pendingTask.id, {
+      headers: { Cookie: cookie },
+    })
+  ).json();
+  assert.equal(recovered.status, "interrupted");
+  assert.notEqual(recovered.upload_token, pendingTask.upload_token);
+  assert.equal(recovered.generated, false);
+  assert.deepEqual(
+    recovered.copies.map((c) => c.id),
+    pendingTask.copies.map((c) => c.id),
+  );
+  const noPartial = await fetch(
+    base + "/api/jobs/" + pendingTask.id + "/archive",
+    { headers: { Cookie: cookie } },
+  );
+  assert.equal(noPartial.status, 409);
+  await noPartial.json();
+  await sendInput(recovered);
+  await json("/jobs/" + pendingTask.id + "/retry", {});
+  let resumed;
+  for (let i = 0; i < 200; i++) {
+    resumed = await (
+      await fetch(base + "/api/jobs/" + pendingTask.id, {
+        headers: { Cookie: cookie },
+      })
+    ).json();
+    if (resumed.status === "completed") break;
+    assert.notEqual(resumed.status, "failed");
+    await new Promise((resolve) => setTimeout(resolve, 50));
+  }
+  assert.equal(resumed.generated, true);
+  assert.equal(resumed.attempts, 2);
+  assert.deepEqual(
+    resumed.copies.map((c) => c.id),
+    pendingTask.copies.map((c) => c.id),
+  );
+  await stop();
+  assert.equal(
+    hash(readFileSync(join(root, "internal/blind/testdata/clean.png"))),
+    before,
+  );
+  assert.ok(!logs.includes("PUBLIC_JOB_PERSON_A"));
   assert.ok(!logs.includes(master));
   assert.ok(!logs.includes("PUBLIC_RECIPIENT_A"));
   console.log(
-    "Restart smoke passed: records + rotation persist; old-copy trace + exact idempotent ZIP survive restart; wrong master fails closed; runtime cleaned; original intact; no recipient/master in logs.",
+    "Restart smoke passed: background archive survives restart then expires with registration intact; SIGKILL recovers interrupted with same IDs and successful retry; records + rotation persist; old-copy trace + exact idempotent ZIP survive restart; wrong master fails closed; runtime cleaned; original intact; no recipient/master in logs.",
   );
 } finally {
   await stop();
