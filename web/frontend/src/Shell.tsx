@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Alert,
   Avatar,
@@ -42,6 +42,7 @@ export function Shell({
   ...preferences
 }: PreferencesProps & { user: User; onLogout: () => Promise<void> }) {
   const t = useText();
+  const contentRef = useRef<HTMLDivElement>(null);
   const { token } = theme.useToken();
   const [page, setPage] = useState<Page>(currentPage);
   const [collapsed, setCollapsed] = useState(false);
@@ -80,6 +81,9 @@ export function Shell({
     setPage(value as Page);
     setMobile(false);
   };
+  useEffect(() => {
+    contentRef.current?.scrollTo({ top: 0 });
+  }, [page]);
   const items = [
     {
       key: "overview",
@@ -139,7 +143,7 @@ export function Shell({
     <Layout className="platform">
       <Layout.Sider
         className="desktop-sidebar"
-        width={240}
+        width={224}
         collapsedWidth={80}
         collapsed={collapsed}
         style={{
@@ -243,7 +247,7 @@ export function Shell({
             </Dropdown>
           </div>
         </Layout.Header>
-        <Layout.Content className="content">
+        <Layout.Content className="content" ref={contentRef}>
           <div className="content-inner">
             <ErrorNotice error={logoutError} />
             {typeError && (

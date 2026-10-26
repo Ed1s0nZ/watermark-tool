@@ -103,6 +103,8 @@ export function App() {
           fontFamily:
             'Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif',
           colorBgLayout: dark ? "#10141d" : "#f5f7fb",
+          colorBgContainer: dark ? "#171d29" : "#ffffff",
+          colorBorderSecondary: dark ? "#293243" : "#e7ecf4",
         },
         components: { Button: { controlHeight: 36 }, Card: { paddingLG: 24 } },
       }}

@@ -6,17 +6,37 @@ test("authenticated platform, watermark round trip, preferences and mobile navig
   page,
   request,
 }, testInfo) => {
-  async function chooseWithKeyboard(label:string, option:string) {
-    const field=page.getByRole("combobox",{name:label}).first();
+  async function chooseWithKeyboard(label: string, option: string) {
+    const field = page.getByRole("combobox", { name: label }).first();
     await field.press("ArrowDown");
-    await expect(field).toHaveAttribute("aria-expanded","true");
-    const active=page.locator(".ant-select-dropdown:visible .ant-select-item-option-active");
+    await expect(field).toHaveAttribute("aria-expanded", "true");
+    const active = page.locator(
+      ".ant-select-dropdown:visible .ant-select-item-option-active",
+    );
     await expect(active).toBeVisible();
-    for(let i=0;i<6 && await active.getAttribute("title")!==option;i++) await field.press("ArrowDown");
-    await expect(active).toHaveAttribute("title",option);
+    for (
+      let i = 0;
+      i < 6 && (await active.getAttribute("title")) !== option;
+      i++
+    )
+      await field.press("ArrowDown");
+    await expect(active).toHaveAttribute("title", option);
     await field.press("Enter");
-    await expect(page.locator(".topbar [role=combobox][aria-expanded=true]")).toHaveCount(0);
+    await expect(
+      page.locator(".topbar [role=combobox][aria-expanded=true]"),
+    ).toHaveCount(0);
     await expect(page.locator(".ant-select-dropdown:visible")).toHaveCount(0);
+  }
+  async function expectFullHeightSidebar() {
+    const bounds = await page
+      .locator(".desktop-sidebar")
+      .evaluate((el) => ({
+        top: el.getBoundingClientRect().top,
+        bottom: el.getBoundingClientRect().bottom,
+        height: innerHeight,
+      }));
+    expect(bounds.top).toBe(0);
+    expect(bounds.bottom).toBe(bounds.height);
   }
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
@@ -48,7 +68,9 @@ test("authenticated platform, watermark round trip, preferences and mobile navig
     .getByLabel("密码", { exact: true })
     .fill("local-test-password-2026");
   await page.getByRole("button", { name: "登录工作台", exact: true }).click();
-  await expect(page.getByText("让每一份文档，都有迹可循。")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "工作台", exact: true }),
+  ).toBeVisible();
   expect(
     (
       await (await page.request.get("/api/supported-types")).json()
@@ -57,7 +79,17 @@ test("authenticated platform, watermark round trip, preferences and mobile navig
   await page.getByRole("button", { name: "折叠侧边栏" }).click();
   await expect(page.getByRole("button", { name: "展开侧边栏" })).toBeVisible();
   await page.getByRole("button", { name: "展开侧边栏" }).click();
-  await page.getByRole("button", { name: "开始保护文档" }).click();
+  await expectFullHeightSidebar();
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await expectFullHeightSidebar();
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.getByRole("button", { name: "开始添加" }).click();
+  await page
+    .locator(".content")
+    .evaluate((el) => el.scrollTo(0, el.scrollHeight));
+  await expectFullHeightSidebar();
+  await expect(page.locator(".topbar")).toBeInViewport();
+  await page.locator(".content").evaluate((el) => el.scrollTo(0, 0));
   await page.getByRole("button", { name: "生成水印文件" }).click();
   await expect(page.getByText("请先选择文件", { exact: true })).toBeVisible();
   await page

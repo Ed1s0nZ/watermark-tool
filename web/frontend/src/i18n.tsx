@@ -33,11 +33,12 @@ export const zh = {
   origin_rejected: "请求来源被拒绝，请从平台地址重新打开。",
   retry: "重试",
   loading: "正在连接工作空间…",
+  overviewHint: "为文档添加隐形标识，或读取已有水印信息。",
   welcome: "让每一份文档，都有迹可循。",
   welcomeHint:
     "在一个工作空间内完成隐形水印嵌入与提取，保持原始文档的阅读体验。",
-  start: "开始保护文档",
-  inspect: "提取已有水印",
+  start: "开始添加",
+  inspect: "开始提取",
   capabilities: "文档保护能力",
   supported: "支持格式",
   maxSize: "单文件上限",
@@ -138,10 +139,12 @@ export const en: Dictionary = {
     "Request origin rejected. Reopen the platform from its own address.",
   retry: "Retry",
   loading: "Connecting to your workspace…",
+  overviewHint:
+    "Add an invisible identifier to a document, or read an existing watermark.",
   welcome: "Give every document a trace.",
   welcomeHint:
     "Embed and extract invisible watermarks in one workspace while preserving the document’s reading experience.",
-  start: "Protect a document",
+  start: "Add a watermark",
   inspect: "Extract a watermark",
   capabilities: "Document protection",
   supported: "Supported formats",
