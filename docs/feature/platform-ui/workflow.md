@@ -39,3 +39,21 @@
 - 允许变更：boundary_redesign_plan；需求确认后形成模块拆分设计再实施。
 - 验证标准：保留水印往返行为，鉴权在服务端生效，构建资源可由 Go 服务本地提供。
 - 验证命令：git diff --check；实施后按实际构建入口补充命令与结果。
+
+## F1–F3 / P1–P6：确认与设计完成
+
+- 2026-10-26 用户明确回复“确认”，接受 requirements.md 中的默认方案。
+- 需求确认提交：6f4d339；设计提交：56f57a1；实施计划提交：d852923；均已推送 main。
+- 依赖状态：需求、界面状态、Ant Design 组件、前端架构、认证契约与验证计划均已记录。
+- Workflow Gate：允许实现，范围以已确认需求为准，不需要额外产品决策。
+- Maintainability Gate：按计划拆分认证与 React 页面；旧大 CSS 与 DOM 脚本退役，未在大文件中叠加行为。
+
+## F4 / P7–P8：实现
+
+- web/frontend 按 App、Shell、Login、Dashboard、WatermarkPage、Settings、Preferences、i18n、api 拆分；本地构建输出 web/dist，由 Go 服务提供。
+- internal/auth 实现配置账号、随机令牌、摘要存储、会话探测、退出撤销、同源写请求检查与安全 Cookie 属性。
+- cmd/server 将认证应用到原有水印路由；限流 map 加锁，限流只计登录/文件操作；上传请求体限长，multipart 临时文件回收。
+- 保留原水印算法与 CLI；原生页面入口替换为 Ant Design 平台。
+- 界面包括会话加载/失败、未配置、空结果、上传校验、处理中、成功下载/提取、错误重试与会话过期恢复。
+- 偏好保存在浏览器；登录凭据不写 localStorage，退出清理页面状态。服务重启后会话失效。
+- 验证：生产构建、Go 测试/race、认证 HTTP 测试、真实 Go 服务浏览器 PNG 往返已通过；最终验证记录见 verification.md。

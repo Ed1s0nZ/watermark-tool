@@ -8,12 +8,13 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
-	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 
+	"watermark-tool/internal/auth"
 	"watermark-tool/internal/service"
 	_ "watermark-tool/internal/watermark/docx"
 	_ "watermark-tool/internal/watermark/jpg"
@@ -39,6 +40,7 @@ type ClientRequests struct {
 
 // 存储客户端请求频率的映射
 var clientRequestsMap = make(map[string]*ClientRequests)
+var clientRequestsMu sync.Mutex
 
 // LoggingMiddleware 日志中间件
 func LoggingMiddleware() gin.HandlerFunc {
@@ -64,6 +66,7 @@ func RateLimitMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		clientIP := c.ClientIP()
 
+		clientRequestsMu.Lock()
 		// 获取或创建客户端请求记录
 		client, exists := clientRequestsMap[clientIP]
 		if !exists {
@@ -82,6 +85,7 @@ func RateLimitMiddleware() gin.HandlerFunc {
 
 		// 检查请求频率
 		if client.Count >= MaxRequestsPerMinute {
+			clientRequestsMu.Unlock()
 			c.JSON(http.StatusTooManyRequests, gin.H{
 				"error": "请求频率过高，请稍后再试",
 			})
@@ -91,6 +95,7 @@ func RateLimitMiddleware() gin.HandlerFunc {
 
 		// 增加请求计数
 		client.Count++
+		clientRequestsMu.Unlock()
 
 		c.Next()
 	}
@@ -128,39 +133,42 @@ func main() {
 	// 创建Gin实例
 	r := gin.Default()
 
-	// 添加中间件
 	r.Use(LoggingMiddleware())
-	r.Use(RateLimitMiddleware())
-
-	// 添加CORS中间件
-	r.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"*"},
-		AllowMethods:     []string{"GET", "POST"},
-		AllowHeaders:     []string{"Origin", "Content-Type"},
-		ExposeHeaders:    []string{"Content-Length", "Content-Disposition"},
-		AllowCredentials: true,
-		MaxAge:           12 * time.Hour,
-	}))
+	r.SetTrustedProxies(nil)
+	sessions := auth.New(os.Getenv("WATERMARK_ADMIN_USER"), os.Getenv("WATERMARK_ADMIN_PASSWORD"), os.Getenv("WATERMARK_COOKIE_SECURE") == "true")
 
 	// 设置上传文件大小限制
 	r.MaxMultipartMemory = 8 << 20 // 8 MiB
 
-	// 设置静态文件
-	r.Static("/static", "./web/static")
-
-	// 设置HTML模板
-	r.LoadHTMLGlob("web/templates/*")
-
-	// 首页
+	if _, err := os.Stat("web/dist/index.html"); err != nil {
+		log.Fatal("Frontend missing: run cd web/frontend && npm ci && npm run build")
+	}
+	r.Static("/assets", "./web/dist/assets")
+	r.StaticFile("/favicon.svg", "./web/dist/favicon.svg")
 	r.GET("/", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "index.html", nil)
+		c.Header("Cache-Control", "no-cache")
+		c.File("web/dist/index.html")
+	})
+	authAPI := r.Group("/api/auth", auth.SameOrigin())
+	authAPI.GET("/session", sessions.Session)
+	authAPI.POST("/login", RateLimitMiddleware(), sessions.Login)
+	authAPI.POST("/logout", sessions.Logout)
+	api := r.Group("/api", auth.SameOrigin(), sessions.Require())
+	api.Use(func(c *gin.Context) {
+		if c.Request.Method == http.MethodPost {
+			c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, service.MaxFileSize+(1<<20))
+			defer func() {
+				if c.Request.MultipartForm != nil {
+					c.Request.MultipartForm.RemoveAll()
+				}
+			}()
+		}
+		c.Next()
 	})
 
-	// API路由
-	api := r.Group("/api")
 	{
 		// 添加水印API
-		api.POST("/add-watermark", func(c *gin.Context) {
+		api.POST("/add-watermark", RateLimitMiddleware(), func(c *gin.Context) {
 			// 获取上传的文件
 			file, err := c.FormFile("file")
 			if err != nil {
@@ -240,7 +248,7 @@ func main() {
 		})
 
 		// 提取水印API
-		api.POST("/extract-watermark", func(c *gin.Context) {
+		api.POST("/extract-watermark", RateLimitMiddleware(), func(c *gin.Context) {
 			// 获取上传的文件
 			file, err := c.FormFile("file")
 			if err != nil {
@@ -333,8 +341,14 @@ func main() {
 	go cleanupClientRequests()
 
 	// 启动服务器
-	log.Println("服务器已启动，访问 http://localhost:8080")
-	r.Run(":8080")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+	log.Printf("服务器已启动，访问 http://localhost:%s", port)
+	if err := r.Run(":" + port); err != nil {
+		log.Fatal(err)
+	}
 }
 
 // cleanupTempFiles 定期清理临时文件
@@ -377,12 +391,14 @@ func cleanupClientRequests() {
 
 	for range ticker.C {
 		now := time.Now()
+		clientRequestsMu.Lock()
 		for ip, client := range clientRequestsMap {
 			// 如果超过1小时没有请求，删除记录
 			if now.Sub(client.LastReset) > time.Hour {
 				delete(clientRequestsMap, ip)
 			}
 		}
+		clientRequestsMu.Unlock()
 	}
 }
 

@@ -16,7 +16,7 @@ web/frontend 使用 React、TypeScript、Vite、Ant Design。Go 提供 web/dist/
 | 对象 | 字段 | 类型/必需/默认 | 归属与验证 |
 | --- | --- | --- | --- |
 | 环境 | WATERMARK_ADMIN_USER | string，必需 | 服务端，非空 |
-| 环境 | WATERMARK_ADMIN_PASSWORD | string，必需 | 服务端，至少 12 字符；不记录凭据 |
+| 环境 | WATERMARK_ADMIN_PASSWORD | string，必需 | 服务端，至少 12 字节；不记录凭据 |
 | 环境 | WATERMARK_COOKIE_SECURE | bool，可选，false | HTTPS 部署设为 true |
 | 环境 | PORT | string，可选，8080 | 服务监听端口 |
 | 会话 | token | 32 随机字节 | 服务端仅存 SHA-256 摘要；Cookie 存令牌 |

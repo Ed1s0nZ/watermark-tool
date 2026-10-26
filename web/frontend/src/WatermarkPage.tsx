@@ -1,0 +1,326 @@
+import { useEffect, useRef, useState } from "react";
+import {
+  Alert,
+  Button,
+  Card,
+  Checkbox,
+  Col,
+  Empty,
+  Form,
+  Input,
+  Row,
+  Space,
+  Steps,
+  Tag,
+  Typography,
+  Upload,
+} from "antd";
+import {
+  CheckCircleOutlined,
+  DownloadOutlined,
+  InboxOutlined,
+} from "@ant-design/icons";
+import { api } from "./api";
+import { useText } from "./i18n";
+import { ErrorNotice } from "./ErrorNotice";
+export function WatermarkPage({
+  kind,
+  types,
+}: {
+  kind: "add" | "extract";
+  types: string[];
+}) {
+  const t = useText();
+  const [file, setFile] = useState<File>();
+  const [text, setText] = useState("");
+  const [timestamp, setTimestamp] = useState(true);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<unknown>();
+  const [validation, setValidation] = useState<
+    "fileRequired" | "invalidFile" | "tooLarge" | "textRequired" | "textLong"
+  >();
+  const [result, setResult] = useState<{
+    watermark: string;
+    timestamp?: string;
+  }>();
+  const [download, setDownload] = useState<{ url: string; name: string }>();
+  const url = useRef<string | undefined>(undefined);
+  const pending = useRef(false);
+  useEffect(
+    () => () => {
+      if (url.current) URL.revokeObjectURL(url.current);
+    },
+    [],
+  );
+  const byteLength = new TextEncoder().encode(text).length;
+  function clearResult() {
+    setResult(undefined);
+    setDownload(undefined);
+    if (url.current) {
+      URL.revokeObjectURL(url.current);
+      url.current = undefined;
+    }
+  }
+  async function submit() {
+    if (pending.current) return;
+    setValidation(undefined);
+    setError(undefined);
+    if (!file) {
+      setValidation("fileRequired");
+      return;
+    }
+    if (kind === "add" && !text.trim()) {
+      setValidation("textRequired");
+      return;
+    }
+    if (kind === "add" && byteLength > 100) {
+      setValidation("textLong");
+      return;
+    }
+    pending.current = true;
+    setBusy(true);
+    clearResult();
+    const body = new FormData();
+    body.append("file", file);
+    if (kind === "add") body.append("watermark", text);
+    try {
+      const response = await api(
+        kind === "add"
+          ? "/add-watermark"
+          : `/extract-watermark?show_timestamp=${timestamp}`,
+        { method: "POST", body },
+      );
+      if (kind === "add") {
+        const blob = await response.blob();
+        url.current = URL.createObjectURL(blob);
+        const dot = file.name.lastIndexOf(".");
+        setDownload({
+          url: url.current,
+          name: `${file.name.slice(0, dot)}_watermarked${file.name.slice(dot)}`,
+        });
+      } else {
+        setResult(await response.json());
+      }
+    } catch (e) {
+      setError(e);
+    } finally {
+      pending.current = false;
+      setBusy(false);
+    }
+  }
+  return (
+    <Space direction="vertical" size={22} style={{ width: "100%" }}>
+      <div className="page-heading">
+        <Typography.Title level={2}>
+          {kind === "add" ? t.addTitle : t.extractTitle}
+        </Typography.Title>
+        <Typography.Text type="secondary">
+          {kind === "add" ? t.addHint : t.extractHint}
+        </Typography.Text>
+      </div>
+      <Row gutter={[24, 24]}>
+        <Col xs={24} lg={16}>
+          <Card>
+            <Form layout="vertical" onFinish={submit} requiredMark={false}>
+              <Form.Item label={t.upload}>
+                <Upload.Dragger
+                  accept={types.map((type) => "." + type).join(",")}
+                  multiple={false}
+                  maxCount={1}
+                  disabled={busy || !types.length}
+                  fileList={
+                    file
+                      ? [{ uid: "selected", name: file.name, status: "done" }]
+                      : []
+                  }
+                  beforeUpload={(selected) => {
+                    const extension = selected.name
+                      .split(".")
+                      .pop()
+                      ?.toLowerCase();
+                    if (!extension || !types.includes(extension)) {
+                      setValidation("invalidFile");
+                      return Upload.LIST_IGNORE;
+                    }
+                    if (selected.size > 50 * 1024 * 1024) {
+                      setValidation("tooLarge");
+                      return Upload.LIST_IGNORE;
+                    }
+                    setFile(selected);
+                    setValidation(undefined);
+                    setError(undefined);
+                    clearResult();
+                    return false;
+                  }}
+                  onRemove={() => {
+                    setFile(undefined);
+                    clearResult();
+                    setValidation(undefined);
+                  }}
+                >
+                  <p className="ant-upload-drag-icon">
+                    <InboxOutlined aria-hidden="true" />
+                  </p>
+                  <p className="ant-upload-text">{t.drop}</p>
+                  <p className="ant-upload-hint">{t.uploadHint}</p>
+                </Upload.Dragger>
+                <div className="format-list">
+                  <Space wrap size={[4, 6]}>
+                    {types.map((type) => (
+                      <Tag key={type}>{type.toUpperCase()}</Tag>
+                    ))}
+                  </Space>
+                </div>
+              </Form.Item>
+              {kind === "add" ? (
+                <Form.Item
+                  label={t.text}
+                  extra={t.textHint}
+                  validateStatus={byteLength > 100 ? "error" : undefined}
+                >
+                  <Input.TextArea
+                    value={text}
+                    disabled={busy}
+                    onChange={(e) => {
+                      setText(e.target.value);
+                      clearResult();
+                    }}
+                    placeholder={t.textPlaceholder}
+                    rows={4}
+                  />
+                  <div
+                    className={`byte-count ${byteLength > 100 ? "over-limit" : ""}`}
+                  >
+                    {byteLength} / 100 {t.bytes}
+                  </div>
+                </Form.Item>
+              ) : (
+                <Form.Item>
+                  <Checkbox
+                    checked={timestamp}
+                    disabled={busy}
+                    onChange={(e) => {
+                      setTimestamp(e.target.checked);
+                      clearResult();
+                    }}
+                  >
+                    {t.timestamp}
+                  </Checkbox>
+                </Form.Item>
+              )}
+              <Space direction="vertical" style={{ width: "100%" }} size={16}>
+                {validation && (
+                  <Alert
+                    role="alert"
+                    type="error"
+                    showIcon
+                    message={t[validation]}
+                  />
+                )}
+                <ErrorNotice error={error} />
+                <Button
+                  type="primary"
+                  htmlType="submit"
+                  size="large"
+                  loading={busy}
+                  disabled={!types.length}
+                  icon={
+                    kind === "add" ? (
+                      <DownloadOutlined aria-hidden="true" />
+                    ) : (
+                      <InboxOutlined aria-hidden="true" />
+                    )
+                  }
+                >
+                  {kind === "add" ? t.process : t.extractAction}
+                </Button>
+                {busy && (
+                  <Typography.Text role="status" type="secondary">
+                    {t.processing}
+                  </Typography.Text>
+                )}
+              </Space>
+            </Form>
+          </Card>
+          <Card
+            title={kind === "add" ? t.success : t.result}
+            style={{ marginTop: 24 }}
+          >
+            <div aria-live="polite">
+              {download ? (
+                <Space direction="vertical" size={16}>
+                  <Typography.Text type="success">
+                    <CheckCircleOutlined aria-hidden="true" /> {t.success}
+                  </Typography.Text>
+                  <Button
+                    type="primary"
+                    href={download.url}
+                    download={download.name}
+                    icon={<DownloadOutlined aria-hidden="true" />}
+                  >
+                    {t.download}
+                  </Button>
+                </Space>
+              ) : result ? (
+                <Space direction="vertical" size={16} style={{ width: "100%" }}>
+                  <div>
+                    <Typography.Text type="secondary">
+                      {t.watermark}
+                    </Typography.Text>
+                    <Typography.Paragraph
+                      className="result-text"
+                      copyable={{ tooltips: [t.copy, t.success] }}
+                    >
+                      {result.watermark}
+                    </Typography.Paragraph>
+                  </div>
+                  {timestamp && (
+                    <div>
+                      <Typography.Text type="secondary">
+                        {t.addedAt}
+                      </Typography.Text>
+                      <Typography.Paragraph>
+                        {result.timestamp || t.noTimestamp}
+                      </Typography.Paragraph>
+                    </div>
+                  )}
+                </Space>
+              ) : (
+                <Empty
+                  image={Empty.PRESENTED_IMAGE_SIMPLE}
+                  description={
+                    <>
+                      <div>{t.emptyResult}</div>
+                      <Typography.Text type="secondary">
+                        {t.emptyHint}
+                      </Typography.Text>
+                    </>
+                  }
+                />
+              )}
+            </div>
+          </Card>
+        </Col>
+        <Col xs={24} lg={8}>
+          <Card title={t.steps}>
+            <Steps
+              direction="vertical"
+              size="small"
+              items={[
+                t.step1,
+                kind === "add" ? t.step2 : t.extractStep2,
+                kind === "add" ? t.step3 : t.extractStep3,
+              ].map((title) => ({ title }))}
+            />
+          </Card>
+          <Alert
+            className="privacy-note"
+            type="info"
+            showIcon
+            message={t.privacy}
+          />
+        </Col>
+      </Row>
+    </Space>
+  );
+}

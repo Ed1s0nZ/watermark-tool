@@ -1,0 +1,9 @@
+node_modules/
+web/dist/
+.env
+.env.*
+!.env.example
+/server
+/cli
+playwright-report/
+test-results/
