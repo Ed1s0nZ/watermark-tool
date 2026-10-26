@@ -9,6 +9,7 @@ import {
   Form,
   Input,
   Row,
+  Select,
   Space,
   Steps,
   Tag,
@@ -31,16 +32,26 @@ export function WatermarkPage({
   types: string[];
 }) {
   const t = useText();
+  const [algorithm, setAlgorithm] = useState("legacy");
+  const blindMode = algorithm === "go-dct-v1";
+  const allowedTypes = blindMode ? ["png", "jpg", "jpeg"] : types;
+  const textLimit = blindMode ? 34 : 100;
   const [file, setFile] = useState<File>();
   const [text, setText] = useState("");
   const [timestamp, setTimestamp] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>();
   const [validation, setValidation] = useState<
-    "fileRequired" | "invalidFile" | "tooLarge" | "textRequired" | "textLong"
+    | "fileRequired"
+    | "invalidFile"
+    | "tooLarge"
+    | "textRequired"
+    | "textLong"
+    | "blind_text"
   >();
   const [result, setResult] = useState<{
     watermark: string;
+    algorithm?: string;
     timestamp?: string;
   }>();
   const [download, setDownload] = useState<{ url: string; name: string }>();
@@ -73,8 +84,8 @@ export function WatermarkPage({
       setValidation("textRequired");
       return;
     }
-    if (kind === "add" && byteLength > 100) {
-      setValidation("textLong");
+    if (kind === "add" && byteLength > textLimit) {
+      setValidation(blindMode ? "blind_text" : "textLong");
       return;
     }
     pending.current = true;
@@ -82,6 +93,7 @@ export function WatermarkPage({
     clearResult();
     const body = new FormData();
     body.append("file", file);
+    body.append("algorithm", algorithm);
     if (kind === "add") body.append("watermark", text);
     try {
       const response = await api(
@@ -96,7 +108,7 @@ export function WatermarkPage({
         const dot = file.name.lastIndexOf(".");
         setDownload({
           url: url.current,
-          name: `${file.name.slice(0, dot)}_watermarked${file.name.slice(dot)}`,
+          name: `${file.name.slice(0, dot)}_watermarked${blindMode ? ".png" : file.name.slice(dot)}`,
         });
       } else {
         setResult(await response.json());
@@ -122,9 +134,40 @@ export function WatermarkPage({
         <Col xs={24} lg={16}>
           <Card>
             <Form layout="vertical" onFinish={submit} requiredMark={false}>
+              <Form.Item label={t.algorithm}>
+                <Select
+                  aria-label={t.algorithm}
+                  value={algorithm}
+                  disabled={busy}
+                  options={[
+                    { value: "legacy", label: t.legacyMode },
+                    { value: "go-dct-v1", label: t.blindMode },
+                  ]}
+                  onChange={(value) => {
+                    setAlgorithm(value);
+                    clearResult();
+                    setError(undefined);
+                    setValidation(undefined);
+                    if (
+                      value !== "legacy" &&
+                      file &&
+                      !/\.(png|jpe?g)$/i.test(file.name)
+                    )
+                      setFile(undefined);
+                  }}
+                />
+                {blindMode && (
+                  <Alert
+                    style={{ marginTop: 12 }}
+                    type="info"
+                    showIcon
+                    message={t.blindHint}
+                  />
+                )}
+              </Form.Item>
               <Form.Item label={t.upload}>
                 <Upload.Dragger
-                  accept={types.map((type) => "." + type).join(",")}
+                  accept={allowedTypes.map((type) => "." + type).join(",")}
                   multiple={false}
                   maxCount={1}
                   disabled={busy || !types.length}
@@ -138,7 +181,7 @@ export function WatermarkPage({
                       .split(".")
                       .pop()
                       ?.toLowerCase();
-                    if (!extension || !types.includes(extension)) {
+                    if (!extension || !allowedTypes.includes(extension)) {
                       setValidation("invalidFile");
                       return Upload.LIST_IGNORE;
                     }
@@ -166,7 +209,7 @@ export function WatermarkPage({
                 </Upload.Dragger>
                 <div className="format-list">
                   <Space wrap size={[4, 6]}>
-                    {types.map((type) => (
+                    {allowedTypes.map((type) => (
                       <Tag key={type}>{type.toUpperCase()}</Tag>
                     ))}
                   </Space>
@@ -176,7 +219,7 @@ export function WatermarkPage({
                 <Form.Item
                   label={t.text}
                   extra={t.textHint}
-                  validateStatus={byteLength > 100 ? "error" : undefined}
+                  validateStatus={byteLength > textLimit ? "error" : undefined}
                 >
                   <Input.TextArea
                     value={text}
@@ -189,9 +232,9 @@ export function WatermarkPage({
                     rows={4}
                   />
                   <div
-                    className={`byte-count ${byteLength > 100 ? "over-limit" : ""}`}
+                    className={`byte-count ${byteLength > textLimit ? "over-limit" : ""}`}
                   >
-                    {byteLength} / 100 {t.bytes}
+                    {byteLength} / {textLimit} {t.bytes}
                   </div>
                 </Form.Item>
               ) : (
@@ -265,7 +308,10 @@ export function WatermarkPage({
                 <Space direction="vertical" size={16} style={{ width: "100%" }}>
                   <div>
                     <Typography.Text type="secondary">
-                      {t.watermark}
+                      {t.watermark}{" "}
+                      {result.algorithm === "go-dct-v1" && (
+                        <Tag color="success">{t.blindVerified}</Tag>
+                      )}
                     </Typography.Text>
                     <Typography.Paragraph
                       className="result-text"

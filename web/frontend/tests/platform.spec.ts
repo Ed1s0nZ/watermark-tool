@@ -28,13 +28,11 @@ test("authenticated platform, watermark round trip, preferences and mobile navig
     await expect(page.locator(".ant-select-dropdown:visible")).toHaveCount(0);
   }
   async function expectFullHeightSidebar() {
-    const bounds = await page
-      .locator(".desktop-sidebar")
-      .evaluate((el) => ({
-        top: el.getBoundingClientRect().top,
-        bottom: el.getBoundingClientRect().bottom,
-        height: innerHeight,
-      }));
+    const bounds = await page.locator(".desktop-sidebar").evaluate((el) => ({
+      top: el.getBoundingClientRect().top,
+      bottom: el.getBoundingClientRect().bottom,
+      height: innerHeight,
+    }));
     expect(bounds.top).toBe(0);
     expect(bounds.bottom).toBe(bounds.height);
   }
@@ -167,10 +165,14 @@ test("authenticated platform, watermark round trip, preferences and mobile navig
   const download = await downloadPromise;
   const downloadPath = await download.path();
   expect(downloadPath).toBeTruthy();
-  await page.setViewportSize({width:1440,height:1080});
-  await page.locator(".content").evaluate(el=>el.scrollTo(0,0));
-  await page.screenshot({path:testInfo.outputPath("add-watermark.png"),fullPage:true,animations:"disabled"});
-  await page.setViewportSize({width:1280,height:720});
+  await page.setViewportSize({ width: 1440, height: 1080 });
+  await page.locator(".content").evaluate((el) => el.scrollTo(0, 0));
+  await page.screenshot({
+    path: testInfo.outputPath("add-watermark.png"),
+    fullPage: true,
+    animations: "disabled",
+  });
+  await page.setViewportSize({ width: 1280, height: 720 });
   await page.getByRole("menuitem", { name: "Extract watermark" }).click();
   const extract = page.locator(".content-inner > div").filter({
     has: page.getByRole("heading", {
@@ -189,10 +191,14 @@ test("authenticated platform, watermark round trip, preferences and mobile navig
   await expect(page.locator(".result-text")).toHaveText("内部资料-2026");
   await expect(page.getByText("Created at", { exact: true })).toBeVisible();
   await expect(extract).not.toContainText("No time information returned");
-  await page.setViewportSize({width:1440,height:1000});
-  await page.locator(".content").evaluate(el=>el.scrollTo(0,0));
-  await page.screenshot({path:testInfo.outputPath("extract-watermark.png"),fullPage:true,animations:"disabled"});
-  await page.setViewportSize({width:1280,height:720});
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.locator(".content").evaluate((el) => el.scrollTo(0, 0));
+  await page.screenshot({
+    path: testInfo.outputPath("extract-watermark.png"),
+    fullPage: true,
+    animations: "disabled",
+  });
+  await page.setViewportSize({ width: 1280, height: 720 });
   await page
     .getByRole("checkbox", { name: "Show watermark creation time" })
     .uncheck();
@@ -296,4 +302,80 @@ test("authenticated platform, watermark round trip, preferences and mobile navig
   ).toBeVisible();
   expect((await page.request.get("/api/supported-types")).status()).toBe(401);
   expect(errors).toEqual([]);
+});
+
+test("Go blind mode authenticates payload and keeps legacy mode", async ({
+  page,
+}, testInfo) => {
+  await page.goto("/");
+  await page.getByLabel("用户名", { exact: true }).fill("admin");
+  await page
+    .getByLabel("密码", { exact: true })
+    .fill("local-test-password-2026");
+  await page.getByRole("button", { name: "登录工作台", exact: true }).click();
+  await page.getByRole("button", { name: "开始添加" }).click();
+  async function chooseMode() {
+    const field = page.getByRole("combobox", { name: "水印模式" });
+    await field.press("ArrowDown");
+    await expect(field).toHaveAttribute("aria-expanded", "true");
+    const active = page.locator(
+      ".ant-select-dropdown:visible .ant-select-item-option-active",
+    );
+    await expect(active).toBeVisible();
+    for (
+      let i = 0;
+      i < 3 && !(await active.getAttribute("title"))?.includes("Go DCT");
+      i++
+    )
+      await field.press("ArrowDown");
+    await expect(active).toHaveAttribute("title", /Go DCT/);
+    await field.press("Enter");
+    await expect(page.locator(".ant-select-dropdown:visible")).toHaveCount(0);
+  }
+  await chooseMode();
+  await expect(page.getByText(/PNG\/JPG，最多 34/)).toBeVisible();
+  const add = page
+    .locator(".content-inner > div")
+    .filter({ has: page.getByRole("heading", { name: "为文档添加隐形水印" }) });
+  await add
+    .locator("input[type=file]")
+    .setInputFiles("../../internal/blind/testdata/clean.png");
+  await page
+    .getByPlaceholder("例如：内部资料 · 项目编号 · 所属人")
+    .fill("新引擎-A100");
+  await page.getByRole("button", { name: "生成水印文件" }).click();
+  const promise = page.waitForEvent("download");
+  await page.getByRole("link", { name: "下载水印文件" }).click();
+  const download = await promise;
+  expect(download.suggestedFilename()).toMatch(/\.png$/);
+  const path = await download.path();
+  await page.getByRole("menuitem", { name: "提取水印", exact: true }).click();
+  await chooseMode();
+  const extract = page
+    .locator(".content-inner > div")
+    .filter({ has: page.getByRole("heading", { name: "从文档中提取水印" }) });
+  await extract.locator("input[type=file]").setInputFiles({
+    name: "go-watermark.png",
+    mimeType: "image/png",
+    buffer: await readFile(path!),
+  });
+  await page.getByRole("button", { name: "开始提取", exact: true }).click();
+  await expect(page.locator(".result-text")).toHaveText("新引擎-A100");
+  await expect(page.getByText("载荷校验通过", { exact: true })).toBeVisible();
+  await page.setViewportSize({ width: 1440, height: 1280 });
+  await page.locator(".content").evaluate((el) => el.scrollTo(0, 0));
+  await page.screenshot({
+    path: testInfo.outputPath("blind-extract.png"),
+    fullPage: true,
+    animations: "disabled",
+  });
+  await extract
+    .locator("input[type=file]")
+    .setInputFiles("../../internal/blind/testdata/clean.png");
+  await page.getByRole("button", { name: "开始提取", exact: true }).click();
+  await expect(
+    page.getByText("未检出有效的 Go v1 水印，请核对模式和密钥配置。", {
+      exact: true,
+    }),
+  ).toBeVisible();
 });

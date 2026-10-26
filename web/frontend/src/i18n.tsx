@@ -1,5 +1,21 @@
 import { createContext, useContext } from "react";
 export const zh = {
+  algorithm: "水印模式",
+  legacyMode: "文件标记（兼容模式）",
+  blindMode: "图片盲水印 · Go DCT v1",
+  blindHint:
+    "PNG/JPG，最多 34 个 UTF-8 字节；至少 1536 个完整 8×8 块（如 320×320），最大 800 万像素，不支持透明像素。嵌入输出 PNG。当前不承诺裁剪、缩放或截图后提取。",
+  blindVerified: "载荷校验通过",
+  blind_not_found: "未检出有效的 Go v1 水印，请核对模式和密钥配置。",
+  blind_invalid: "检测到水印标记，但版本或载荷校验失败。",
+  blind_capacity: "图片容量不足，至少需要 1536 个完整 8×8 块，例如 320×320。",
+  blind_image: "图片无效：仅支持 PNG/JPG、最多 800 万像素且不含透明像素。",
+  blind_key:
+    "管理员尚未配置有效的 WATERMARK_BLIND_KEY（64 位十六进制，32 字节）。旧模式不受影响。",
+  blind_text: "盲水印文本不能为空，且不得超过 34 个 UTF-8 字节。",
+  blind_algorithm: "不支持此水印算法。",
+  blind_busy: "图片处理任务繁忙，请稍后重试。",
+
   brand: "水印平台",
   tagline: "文档隐形水印工作台",
   workspace: "工作空间",
@@ -103,6 +119,27 @@ export const zh = {
 };
 export type Dictionary = Record<keyof typeof zh, string>;
 export const en: Dictionary = {
+  algorithm: "Watermark mode",
+  legacyMode: "File marker (compatible)",
+  blindMode: "Image blind watermark · Go DCT v1",
+  blindHint:
+    "PNG/JPG, up to 34 UTF-8 bytes; at least 1,536 complete 8×8 blocks (e.g. 320×320), up to 8 MP, no transparent pixels. Embedding creates PNG output. Crop, resize and screenshot recovery are not guaranteed.",
+  blindVerified: "Payload verified",
+  blind_not_found:
+    "No valid Go v1 watermark found. Check the mode and server key.",
+  blind_invalid:
+    "Watermark marker found, but version or payload verification failed.",
+  blind_capacity:
+    "Insufficient image capacity: at least 1,536 complete 8×8 blocks, e.g. 320×320.",
+  blind_image:
+    "Invalid image: use PNG/JPG, up to 8 MP, without transparent pixels.",
+  blind_key:
+    "An administrator must configure WATERMARK_BLIND_KEY (64 hex characters, 32 bytes). Compatible mode remains available.",
+  blind_text:
+    "Blind watermark text must be nonempty and no longer than 34 UTF-8 bytes.",
+  blind_algorithm: "Unsupported watermark algorithm.",
+  blind_busy: "Image processing is busy. Please try again later.",
+
   brand: "Watermark",
   tagline: "Invisible watermark workspace",
   workspace: "WORKSPACE",

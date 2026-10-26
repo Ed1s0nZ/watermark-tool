@@ -21,6 +21,7 @@ export default defineConfig({
     env: {
       PORT: "18080",
       WATERMARK_ADMIN_USER: "admin",
+      WATERMARK_BLIND_KEY: "07".repeat(32),
       WATERMARK_ADMIN_PASSWORD: "local-test-password-2026",
     },
   },

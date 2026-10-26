@@ -169,6 +169,9 @@ func main() {
 	{
 		// 添加水印API
 		api.POST("/add-watermark", RateLimitMiddleware(), func(c *gin.Context) {
+			if selectedAlgorithm(c, tempDir, true) {
+				return
+			}
 			// 获取上传的文件
 			file, err := c.FormFile("file")
 			if err != nil {
@@ -249,6 +252,9 @@ func main() {
 
 		// 提取水印API
 		api.POST("/extract-watermark", RateLimitMiddleware(), func(c *gin.Context) {
+			if selectedAlgorithm(c, tempDir, false) {
+				return
+			}
 			// 获取上传的文件
 			file, err := c.FormFile("file")
 			if err != nil {

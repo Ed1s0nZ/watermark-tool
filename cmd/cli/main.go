@@ -7,6 +7,10 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"crypto/rand"
+	"encoding/hex"
+	"encoding/json"
+	"watermark-tool/internal/blind"
 	"watermark-tool/internal/service"
 	_ "watermark-tool/internal/watermark/docx"
 	_ "watermark-tool/internal/watermark/jpg"
@@ -110,6 +114,33 @@ func main() {
 		},
 	}
 
+	blindAdd := &cobra.Command{Use: "blind-add [input] [new-output.png|jpg] [text]", Short: "Go 自研图片盲水印（不覆盖输出）", Args: cobra.ExactArgs(3), RunE: func(cmd *cobra.Command, args []string) error {
+		key, err := blind.DecodeKey(os.Getenv("WATERMARK_BLIND_KEY"))
+		if err != nil {
+			return err
+		}
+		return blind.AddFile(args[0], args[1], args[2], key)
+	}}
+	blindExtract := &cobra.Command{Use: "blind-extract [input]", Short: "校验并提取 Go 盲水印，输出 JSON", Args: cobra.ExactArgs(1), RunE: func(cmd *cobra.Command, args []string) error {
+		key, err := blind.DecodeKey(os.Getenv("WATERMARK_BLIND_KEY"))
+		if err != nil {
+			return err
+		}
+		result, err := blind.ExtractFile(args[0], key)
+		if err != nil {
+			return err
+		}
+		return json.NewEncoder(cmd.OutOrStdout()).Encode(result)
+	}}
+	keygen := &cobra.Command{Use: "blind-keygen", Short: "生成32字节随机盲水印密钥（hex，请安全保存）", Args: cobra.NoArgs, RunE: func(cmd *cobra.Command, args []string) error {
+		key := make([]byte, 32)
+		if _, err := rand.Read(key); err != nil {
+			return err
+		}
+		_, err := fmt.Fprintln(cmd.OutOrStdout(), hex.EncodeToString(key))
+		return err
+	}}
+	rootCmd.AddCommand(blindAdd, blindExtract, keygen)
 	// 将命令添加到根命令
 	rootCmd.AddCommand(addCmd)
 	rootCmd.AddCommand(extractCmd)
