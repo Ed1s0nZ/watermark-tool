@@ -1,10 +1,10 @@
 # 水印工具平台化需求
 
-- Status: Pending Confirmation
+- Status: Confirmed
 - Created: 2026-10-26
 - Last updated: 2026-10-26
-- Confirmed by: Pending
-- Confirmation date: Pending
+- Confirmed by: 用户（聊天回复“确认”）
+- Confirmation date: 2026-10-26
 - 来源：用户要求「用 Ant Design 重构前端，增加登录、侧边栏、主题和语言等，从工具到平台」，并要求直接提交至 main。
 
 ## 背景与目标
@@ -55,4 +55,4 @@
 
 ## 确认
 
-待用户确认本需求快照，尤其是单管理员登录与现有 API 增加鉴权的默认方案。未将用户的实施授权误记为对本文件的确认。
+用户于 2026-10-26 回复“确认”，接受本需求快照及单管理员登录、现有 API 增加鉴权的默认方案。上表中待确认假设随本次确认接受。
