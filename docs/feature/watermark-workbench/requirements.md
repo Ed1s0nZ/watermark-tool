@@ -1,10 +1,10 @@
 # 水印工作流优化需求快照
 
-- Status: Pending Confirmation
+- Status: Confirmed
 - Created / Updated: 2026-10-26
-- Confirmed by / Confirmation date: Pending
+- Confirmed by / Confirmation date: 用户回复“确认” / 2026-10-26
 - 来源：用户在候选能力讨论后指定目标“最佳实践优化”。
-- 优先级：Unprioritized；下述三模块范围及具体默认值为建议，尚未获本轮确认。
+- 优先级：Unprioritized；下述三模块范围及具体默认值为建议，本快照已获确认。
 
 ## 背景与目标
 
@@ -73,3 +73,5 @@
 范围、预置实验、模板保存位置和报告格式均已明示；需求与验收对应，尚无生产代码变更。
 
 请确认此快照及ASM-001～006，或按编号提出调整。确认后进入设计、实现与完整验证。
+
+确认记录：用户明确回复“确认”，接受本快照及ASM-001～006；进入设计与实现。
