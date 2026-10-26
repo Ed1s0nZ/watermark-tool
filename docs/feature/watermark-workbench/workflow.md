@@ -32,3 +32,11 @@
 - Release impact：直接main代码交付；不自动部署或发布版本。
 - Phase commit / push plan：F0记录、F1需求草案分别提交推送；确认后再推进设计/实现。
 - Blockers / assumptions：当前仅缺新范围的明确确认；不把上一轮确认用于本轮新增需求。
+
+## F1：需求快照
+
+- F0提交c0b54b0已推送main。
+- requirements.md状态Pending Confirmation；14项要求、8项验收，范围建议及6项假设均明示。
+- 质量检查：每项验收有需求映射；实验能力与算法增强分开；报告真实性、模板留存、中文渲染、临时文件、兼容路径及失败恢复已覆盖。
+- git diff --check通过；仅文档变更，不运行无关生产测试。
+- 等待用户确认本轮快照后继续F2；当前目标保持active，不宣称已完成功能优化。
