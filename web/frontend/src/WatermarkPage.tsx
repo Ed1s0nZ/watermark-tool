@@ -4,6 +4,7 @@ import {
   Button,
   Card,
   Checkbox,
+  Descriptions,
   Col,
   Empty,
   Form,
@@ -23,6 +24,7 @@ import {
 } from "@ant-design/icons";
 import { api } from "./api";
 import { useText } from "./i18n";
+import type { CopyRecord } from "./platform";
 import { ErrorNotice } from "./ErrorNotice";
 export function WatermarkPage({
   kind,
@@ -52,6 +54,8 @@ export function WatermarkPage({
   const [result, setResult] = useState<{
     watermark: string;
     algorithm?: string;
+    match?: string;
+    record?: CopyRecord | null;
     timestamp?: string;
   }>();
   const [download, setDownload] = useState<{ url: string; name: string }>();
@@ -320,6 +324,38 @@ export function WatermarkPage({
                       {result.watermark}
                     </Typography.Paragraph>
                   </div>
+                  {result.match && (
+                    <Alert
+                      type={result.match === "registered" ? "success" : "info"}
+                      message={
+                        result.match === "registered"
+                          ? t.traceRegistered
+                          : t.traceUnregistered
+                      }
+                    />
+                  )}
+                  {result.record && (
+                    <Descriptions
+                      column={1}
+                      items={[
+                        {
+                          key: "recipient",
+                          label: t.registeredRecipient,
+                          children: result.record.name,
+                        },
+                        {
+                          key: "business",
+                          label: t.recipientID,
+                          children: result.record.recipient_id,
+                        },
+                        {
+                          key: "batch",
+                          label: t.batchID,
+                          children: result.record.batch_id,
+                        },
+                      ]}
+                    />
+                  )}
                   {timestamp && (
                     <div>
                       <Typography.Text type="secondary">

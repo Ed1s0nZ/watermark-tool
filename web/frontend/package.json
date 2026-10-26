@@ -7,7 +7,7 @@
     "dev": "vite --host 127.0.0.1",
     "build": "tsc --noEmit && vite build",
     "check": "tsc --noEmit",
-    "test:e2e": "playwright test"
+    "test:e2e": "node scripts/e2e.mjs"
   },
   "dependencies": {
     "@ant-design/icons": "^6.0.0",

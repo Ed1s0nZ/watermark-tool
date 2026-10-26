@@ -1,5 +1,80 @@
 import { createContext, useContext } from "react";
 export const zh = {
+  batches: "批量副本",
+  records: "分发记录",
+  keys: "密钥版本",
+  batchHint: "一张图片，为每位接收人生成独立标识的副本。最多20人，输出ZIP。",
+  batchImage: "批次原图",
+  recipientCSV: "接收人名单 CSV",
+  csvHint:
+    "首行 recipient_id,name；每行一个业务编号与显示名。编号不能重复，显示名可同名。",
+  importCSV: "导入 CSV",
+  batchValidation: "请选择原图，并检查名单为不超过16KB的UTF-8 CSV。",
+  generateBatch: "生成批量副本",
+  downloadZIP: "下载 ZIP",
+  batchProcessing: "正在生成并登记副本，请保持页面打开。失败可用相同输入重试。",
+  batchComplete: "副本生成并登记成功",
+  batchPrivacy:
+    "原图与ZIP临时处理，不长期保存。仅保存登记信息；刷新后可到记录页重新上传原图生成同一批次下载。",
+  keyHint: "新版本用于新副本，旧版本可保留为仅提取。",
+  keyPrivacy:
+    "网页只显示密钥元数据，不返回或导出材料。请按部署文档备份数据目录和外部主密钥。",
+  createKey: "创建密钥版本",
+  keyActive: "当前嵌入",
+  keyDecrypt: "仅提取",
+  keyDisabled: "已停用",
+  activateKey: "设为当前",
+  disableKey: "停用",
+  restoreKey: "恢复仅提取",
+  confirmKeyChange: "确认密钥状态变更",
+  activateWarning:
+    "新副本将使用此版本，原当前版本转为仅提取。已开始批次保持原密钥。",
+  disableWarning:
+    "停用后平台不再使用此版本验证水印或重生成旧批次；已下载副本不会消失。",
+  restoreWarning: "恢复此版本用于旧副本提取，但不设为新副本默认。",
+  confirmAction: "确认变更",
+  keyID: "密钥编号",
+  createdAt: "创建时间",
+  actions: "操作",
+  status: "状态",
+  recordsHint: "查询副本的登记信息；记录默认保留，生成文件不长期存储。",
+  batchList: "批次",
+  copyList: "副本",
+  traceTab: "图片溯源",
+  searchRecords: "搜索批次、标识、接收人编号或姓名",
+  registeredRecipient: "登记接收人",
+  recipientID: "业务编号",
+  watermarkID: "水印标识",
+  batchID: "批次编号",
+  copies: "副本数",
+  completed: "已生成",
+  failed: "失败",
+  sourceDigest: "原图摘要",
+  rebuildZIP: "重新生成 ZIP",
+  rebuildHint:
+    "请重新上传原始图片，摘要必须与原批次一致。保留原标识和密钥，不新增记录；停用密钥的批次无法生成。",
+  originalImage: "原始图片",
+  traceHint: "验证水印后查询本平台登记记录。自动模式只使用未停用版本。",
+  traceImage: "待溯源图片",
+  autoKeys: "自动尝试可用密钥",
+  traceAction: "验证并查询",
+  traceRegistered: "水印已验证，找到对应登记记录",
+  traceUnregistered: "水印有效，但本平台没有对应的已生成分发记录",
+  traceCaution:
+    "登记接收人不等于实际泄露者；此结果不是对整张图片内容完整性的证明。",
+  platform_config:
+    "请配置 WATERMARK_DATA_DIR 和 WATERMARK_DATA_KEY 后启用持久功能。",
+  store_unavailable:
+    "持久状态或密钥配置不可用。请检查权限、主密钥、锁和备份；不要清空数据重置。",
+  request_conflict: "请求键或原图与原批次不匹配，请核对输入。",
+  batch_busy: "该批次正在处理，请稍后到记录页查看。",
+  invalid_recipients:
+    "名单或分页参数不正确：使用 recipient_id,name 表头、唯一编号，最多20人。",
+  platform_limit: "已达到批次、密钥或128MiB压缩包资源上限。",
+  record_not_found: "记录或密钥版本不存在。",
+  key_disabled: "所选密钥已停用，无法用于验证或重生成。",
+  invalid_key_state: "不能直接停用当前密钥，请先将其他版本设为当前。",
+
   algorithm: "水印模式",
   legacyMode: "文件标记（兼容模式）",
   blindMode: "图片盲水印 · Go DCT v1",
@@ -119,6 +194,91 @@ export const zh = {
 };
 export type Dictionary = Record<keyof typeof zh, string>;
 export const en: Dictionary = {
+  batches: "Batch copies",
+  records: "Distribution records",
+  keys: "Key versions",
+  batchHint:
+    "Create individually identified copies from one image. Up to 20 recipients, delivered as ZIP.",
+  batchImage: "Batch source image",
+  recipientCSV: "Recipient CSV",
+  csvHint:
+    "Header: recipient_id,name. One ID and display name per row. IDs must be unique; names may repeat.",
+  importCSV: "Import CSV",
+  batchValidation:
+    "Select a source image and a valid UTF-8 CSV no larger than 16 KB.",
+  generateBatch: "Generate batch copies",
+  downloadZIP: "Download ZIP",
+  batchProcessing:
+    "Generating and registering copies. Keep this page open. Retry failures with the same input.",
+  batchComplete: "Copies generated and registered",
+  batchPrivacy:
+    "Source images and ZIPs are temporary. Only registration metadata persists. Reupload the original from Records to regenerate the same batch download.",
+  keyHint:
+    "Use a new version for new copies and keep old versions for extraction.",
+  keyPrivacy:
+    "Only key metadata is shown. Secret material cannot be read or exported here. Back up the data directory and external master key as documented.",
+  createKey: "Create key version",
+  keyActive: "Current embedding",
+  keyDecrypt: "Extraction only",
+  keyDisabled: "Disabled",
+  activateKey: "Set current",
+  disableKey: "Disable",
+  restoreKey: "Restore extraction",
+  confirmKeyChange: "Confirm key state change",
+  activateWarning:
+    "New copies will use this version. The previous current version becomes extraction-only. In-flight batches keep their original key.",
+  disableWarning:
+    "This version will no longer verify watermarks or regenerate old batches. Downloaded copies will still exist.",
+  restoreWarning:
+    "Restore this version for extraction without making it the default for new copies.",
+  confirmAction: "Confirm change",
+  keyID: "Key ID",
+  createdAt: "Created at",
+  actions: "Actions",
+  status: "Status",
+  recordsHint:
+    "Query copy registration metadata. Records persist; generated files do not.",
+  batchList: "Batches",
+  copyList: "Copies",
+  traceTab: "Image trace",
+  searchRecords: "Search batch, watermark, recipient ID or name",
+  registeredRecipient: "Registered recipient",
+  recipientID: "Recipient ID",
+  watermarkID: "Watermark ID",
+  batchID: "Batch ID",
+  copies: "Copies",
+  completed: "Generated",
+  failed: "Failed",
+  sourceDigest: "Source digest",
+  rebuildZIP: "Regenerate ZIP",
+  rebuildHint:
+    "Reupload the original image with the same digest. IDs and key remain unchanged; no new records are created. Disabled keys cannot regenerate batches.",
+  originalImage: "Original image",
+  traceHint:
+    "Verify a watermark and look up its registration. Automatic mode uses enabled keys only.",
+  traceImage: "Image to trace",
+  autoKeys: "Automatically try enabled keys",
+  traceAction: "Verify and look up",
+  traceRegistered: "Watermark verified; registration found",
+  traceUnregistered:
+    "Valid watermark, but no matching completed distribution record exists here",
+  traceCaution:
+    "A registered recipient is not necessarily the actual leaker. This does not prove image content integrity.",
+  platform_config:
+    "Configure WATERMARK_DATA_DIR and WATERMARK_DATA_KEY to enable persistent features.",
+  store_unavailable:
+    "Persistent state or key configuration is unavailable. Check permissions, master key, lock and backups. Do not reset by clearing data.",
+  request_conflict:
+    "The request key or source image does not match this batch. Check your input.",
+  batch_busy: "This batch is processing. Check Records shortly.",
+  invalid_recipients:
+    "Invalid list or pagination. Use recipient_id,name, unique IDs and up to 20 recipients.",
+  platform_limit: "Batch, key or 128 MiB archive capacity reached.",
+  record_not_found: "Record or key version not found.",
+  key_disabled: "This key is disabled and cannot verify or regenerate copies.",
+  invalid_key_state:
+    "Select a different current key before disabling this version.",
+
   algorithm: "Watermark mode",
   legacyMode: "File marker (compatible)",
   blindMode: "Image blind watermark · Go DCT v1",

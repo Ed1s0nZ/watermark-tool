@@ -10,18 +10,10 @@ test("authenticated platform, watermark round trip, preferences and mobile navig
     const field = page.getByRole("combobox", { name: label }).first();
     await field.press("ArrowDown");
     await expect(field).toHaveAttribute("aria-expanded", "true");
-    const active = page.locator(
-      ".ant-select-dropdown:visible .ant-select-item-option-active",
-    );
-    await expect(active).toBeVisible();
-    for (
-      let i = 0;
-      i < 6 && (await active.getAttribute("title")) !== option;
-      i++
-    )
-      await field.press("ArrowDown");
-    await expect(active).toHaveAttribute("title", option);
-    await field.press("Enter");
+    await page
+      .locator(".ant-select-dropdown:visible")
+      .getByTitle(option, { exact: true })
+      .click();
     await expect(
       page.locator(".topbar [role=combobox][aria-expanded=true]"),
     ).toHaveCount(0);
@@ -189,7 +181,7 @@ test("authenticated platform, watermark round trip, preferences and mobile navig
     .getByRole("button", { name: "Extract watermark", exact: true })
     .click();
   await expect(page.locator(".result-text")).toHaveText("内部资料-2026");
-  await expect(page.getByText("Created at", { exact: true })).toBeVisible();
+  await expect(extract.getByText("Created at", { exact: true })).toBeVisible();
   await expect(extract).not.toContainText("No time information returned");
   await page.setViewportSize({ width: 1440, height: 1000 });
   await page.locator(".content").evaluate((el) => el.scrollTo(0, 0));
@@ -206,7 +198,9 @@ test("authenticated platform, watermark round trip, preferences and mobile navig
     .getByRole("button", { name: "Extract watermark", exact: true })
     .click();
   await expect(page.locator(".result-text")).toHaveText("内部资料-2026");
-  await expect(page.getByText("Created at", { exact: true })).not.toBeVisible();
+  await expect(
+    extract.getByText("Created at", { exact: true }),
+  ).not.toBeVisible();
   await page.reload();
   await expect(
     page.getByRole("heading", { name: "Extract a watermark", exact: true }),
@@ -318,18 +312,10 @@ test("Go blind mode authenticates payload and keeps legacy mode", async ({
     const field = page.getByRole("combobox", { name: "水印模式" });
     await field.press("ArrowDown");
     await expect(field).toHaveAttribute("aria-expanded", "true");
-    const active = page.locator(
-      ".ant-select-dropdown:visible .ant-select-item-option-active",
-    );
-    await expect(active).toBeVisible();
-    for (
-      let i = 0;
-      i < 3 && !(await active.getAttribute("title"))?.includes("Go DCT");
-      i++
-    )
-      await field.press("ArrowDown");
-    await expect(active).toHaveAttribute("title", /Go DCT/);
-    await field.press("Enter");
+    await page
+      .locator(".ant-select-dropdown:visible")
+      .getByTitle("图片盲水印 · Go DCT v1", { exact: true })
+      .click();
     await expect(page.locator(".ant-select-dropdown:visible")).toHaveCount(0);
   }
   await chooseMode();

@@ -87,6 +87,7 @@ func (m *Manager) Require() gin.HandlerFunc {
 			c.AbortWithStatusJSON(401, gin.H{"code": "unauthorized", "error": "Authentication required"})
 			return
 		}
+		c.Set("username", m.username)
 		c.Next()
 	}
 }

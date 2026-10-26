@@ -2,18 +2,20 @@ package main
 
 import (
 	"errors"
+	"image"
 	"net/http"
 	"os"
 	"path/filepath"
 
 	"github.com/gin-gonic/gin"
 	"watermark-tool/internal/blind"
+	"watermark-tool/internal/distribution"
 )
 
 var blindSlots = make(chan struct{}, 2)
 
 // selectedAlgorithm preserves the old API default and rejects unrecognized modes.
-func selectedAlgorithm(c *gin.Context, tempDir string, add bool) bool {
+func selectedAlgorithm(c *gin.Context, tempDir string, add bool, stores ...*distribution.Store) bool {
 	algorithm := c.PostForm("algorithm")
 	if algorithm == "" || algorithm == "legacy" {
 		return false
@@ -22,7 +24,7 @@ func selectedAlgorithm(c *gin.Context, tempDir string, add bool) bool {
 		c.JSON(400, gin.H{"code": "blind_algorithm", "error": "Unknown watermark algorithm"})
 		return true
 	}
-	handleBlind(c, tempDir, add)
+	handleBlind(c, tempDir, add, stores...)
 	return true
 }
 func blindError(c *gin.Context, err error) {
@@ -40,7 +42,7 @@ func blindError(c *gin.Context, err error) {
 	}
 	c.JSON(status, gin.H{"code": code, "error": code})
 }
-func handleBlind(c *gin.Context, tempDir string, add bool) {
+func handleBlind(c *gin.Context, tempDir string, add bool, stores ...*distribution.Store) {
 	select {
 	case blindSlots <- struct{}{}:
 		defer func() { <-blindSlots }()
@@ -48,9 +50,20 @@ func handleBlind(c *gin.Context, tempDir string, add bool) {
 		c.JSON(429, gin.H{"code": "blind_busy"})
 		return
 	}
-	key, err := blind.DecodeKey(os.Getenv("WATERMARK_BLIND_KEY"))
+	var managed *distribution.Store
+	if len(stores) > 0 {
+		managed = stores[0]
+	}
+	var key []byte
+	var err error
+	var keyID string
+	if managed != nil {
+		keyID, key, err = managed.Current()
+	} else {
+		key, err = blind.DecodeKey(os.Getenv("WATERMARK_BLIND_KEY"))
+	}
 	if err != nil {
-		blindError(c, err)
+		platformError(c, err)
 		return
 	}
 	file, err := c.FormFile("file")
@@ -76,12 +89,34 @@ func handleBlind(c *gin.Context, tempDir string, add bool) {
 		c.File(output)
 		return
 	}
-	result, err := blind.ExtractFile(input, key)
+	var result blind.Result
+	if managed != nil {
+		var img image.Image
+		img, err = blind.Load(input)
+		if err == nil {
+			result, keyID, err = managed.Verify(img, c.PostForm("key_id"))
+		}
+	} else {
+		result, err = blind.ExtractFile(input, key)
+	}
 	if err != nil {
-		blindError(c, err)
+		platformError(c, err)
 		return
 	}
 	response := gin.H{"watermark": result.Watermark, "algorithm": result.Algorithm}
+	if managed != nil {
+		record, lookupErr := managed.Lookup(result, keyID)
+		if lookupErr != nil {
+			platformError(c, lookupErr)
+			return
+		}
+		response["key_id"] = keyID
+		response["match"] = "unregistered"
+		if record != nil {
+			response["match"] = "registered"
+			response["record"] = record
+		}
+	}
 	if c.DefaultQuery("show_timestamp", "false") == "true" {
 		response["timestamp"] = result.Timestamp
 	}

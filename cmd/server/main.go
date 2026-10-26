@@ -1,14 +1,18 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -117,6 +121,12 @@ func safeRemoveFile(filePath string) {
 }
 
 func main() {
+	exitCode := 0
+	defer func() {
+		if exitCode != 0 {
+			os.Exit(exitCode)
+		}
+	}()
 	// 创建水印服务
 	watermarkService := service.NewWatermarkService()
 
@@ -131,9 +141,20 @@ func main() {
 	gin.SetMode(gin.ReleaseMode)
 
 	// 创建Gin实例
-	r := gin.Default()
+	r := gin.New()
+	r.Use(gin.Recovery())
 
 	r.Use(LoggingMiddleware())
+	managed, err := openPlatform()
+	if err != nil {
+		log.Fatalf("Persistent platform configuration/state unavailable: %v", err)
+	}
+	if managed != nil {
+		defer managed.Close()
+		os.RemoveAll(tempDir)
+		tempDir = managed.RuntimeDir()
+		defer os.RemoveAll(tempDir)
+	}
 	r.SetTrustedProxies(nil)
 	sessions := auth.New(os.Getenv("WATERMARK_ADMIN_USER"), os.Getenv("WATERMARK_ADMIN_PASSWORD"), os.Getenv("WATERMARK_COOKIE_SECURE") == "true")
 
@@ -166,10 +187,11 @@ func main() {
 		c.Next()
 	})
 
+	registerPlatform(api, managed, tempDir)
 	{
 		// 添加水印API
 		api.POST("/add-watermark", RateLimitMiddleware(), func(c *gin.Context) {
-			if selectedAlgorithm(c, tempDir, true) {
+			if selectedAlgorithm(c, tempDir, true, managed) {
 				return
 			}
 			// 获取上传的文件
@@ -252,7 +274,7 @@ func main() {
 
 		// 提取水印API
 		api.POST("/extract-watermark", RateLimitMiddleware(), func(c *gin.Context) {
-			if selectedAlgorithm(c, tempDir, false) {
+			if selectedAlgorithm(c, tempDir, false, managed) {
 				return
 			}
 			// 获取上传的文件
@@ -352,9 +374,25 @@ func main() {
 		port = "8080"
 	}
 	log.Printf("服务器已启动，访问 http://localhost:%s", port)
-	if err := r.Run(":" + port); err != nil {
-		log.Fatal(err)
+	server := &http.Server{Addr: ":" + port, Handler: r, ReadHeaderTimeout: 10 * time.Second, IdleTimeout: 60 * time.Second}
+	stopContext, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	stopped := make(chan error, 1)
+	go func() { stopped <- server.ListenAndServe() }()
+	select {
+	case err := <-stopped:
+		if !errors.Is(err, http.ErrServerClosed) {
+			log.Printf("Server stopped: %v", err)
+			exitCode = 1
+		}
+	case <-stopContext.Done():
+		shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := server.Shutdown(shutdown); err != nil {
+			server.Close()
+		}
 	}
+
 }
 
 // cleanupTempFiles 定期清理临时文件

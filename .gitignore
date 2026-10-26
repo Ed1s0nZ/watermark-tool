@@ -7,3 +7,5 @@ web/dist/
 /cli
 playwright-report/
 test-results/
+
+/.watermark-data/

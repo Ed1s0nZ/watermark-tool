@@ -13,6 +13,9 @@ import {
 } from "antd";
 import {
   AppstoreOutlined,
+  CopyOutlined,
+  DatabaseOutlined,
+  KeyOutlined,
   FileProtectOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
@@ -29,8 +32,19 @@ import { Preferences, PreferencesProps } from "./Preferences";
 import { Dashboard } from "./Dashboard";
 import { WatermarkPage } from "./WatermarkPage";
 import { Settings } from "./Settings";
+import { BatchPage } from "./BatchPage";
+import { RecordsPage } from "./RecordsPage";
+import { KeysPage } from "./KeysPage";
 import { ErrorNotice } from "./ErrorNotice";
-const pages = ["overview", "add", "extract", "settings"] as const;
+const pages = [
+  "overview",
+  "add",
+  "extract",
+  "batches",
+  "records",
+  "keys",
+  "settings",
+] as const;
 type Page = (typeof pages)[number];
 function currentPage(): Page {
   const page = location.hash.slice(1);
@@ -100,6 +114,17 @@ export function Shell({
       icon: <ScanOutlined aria-hidden="true" />,
       label: t.extract,
     },
+    {
+      key: "batches",
+      icon: <CopyOutlined aria-hidden="true" />,
+      label: t.batches,
+    },
+    {
+      key: "records",
+      icon: <DatabaseOutlined aria-hidden="true" />,
+      label: t.records,
+    },
+    { key: "keys", icon: <KeyOutlined aria-hidden="true" />, label: t.keys },
     {
       key: "settings",
       icon: <SettingOutlined aria-hidden="true" />,
@@ -271,6 +296,15 @@ export function Shell({
             </div>
             <div hidden={page !== "extract"}>
               <WatermarkPage kind="extract" types={types} />
+            </div>
+            <div hidden={page !== "batches"}>
+              <BatchPage />
+            </div>
+            <div hidden={page !== "records"}>
+              <RecordsPage active={page === "records"} />
+            </div>
+            <div hidden={page !== "keys"}>
+              <KeysPage active={page === "keys"} />
             </div>
             <div hidden={page !== "settings"}>
               <Settings username={user.username} {...preferences} />

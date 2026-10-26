@@ -226,3 +226,6 @@ func Extract(img image.Image, key []byte) (Result, error) {
 	}
 	return parse(p, key)
 }
+
+// Validate checks the image bounds, capacity and supported opacity before a batch starts.
+func Validate(img image.Image) error { _, _, err := dimensions(img); return err }
