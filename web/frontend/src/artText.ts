@@ -1,5 +1,12 @@
 import { useText, zh } from "./i18n";
 const cn = {
+  x: "横向位置",
+  y: "纵向位置",
+  width: "宽度",
+  height: "高度",
+  logoDigest: "Logo SHA-256",
+  blindOnly: "仅隐形标识",
+  noRegions: "无避让区域",
   layers: "可见层组合",
   text: "仅文字",
   logo: "仅Logo",
@@ -42,6 +49,13 @@ const cn = {
     "策略只保存Logo布局和输出选项，不保存Logo文件、摘要或逐图矩形。",
 };
 const en: typeof cn = {
+  x: "X position",
+  y: "Y position",
+  width: "Width",
+  height: "Height",
+  logoDigest: "Logo SHA-256",
+  blindOnly: "Invisible identifiers only",
+  noRegions: "No exclusion regions",
   layers: "Visible layer combination",
   text: "Text only",
   logo: "Logo only",

@@ -8,7 +8,7 @@ import {
   Tag,
   Typography,
 } from "antd";
-import { useArtText } from "./artText";
+import { ArtworkSummary } from "./ArtworkSummary";
 import { QualitySummary } from "./quality";
 import { Collapse } from "antd";
 import { useFeatureText } from "./traceText";
@@ -33,7 +33,6 @@ export function JobDetails({
 }) {
   const t = useJobText();
   const ft = useFeatureText();
-  const at = useArtText();
   const running = ["preparing", "queued", "processing", "cancelling"].includes(
     job.status,
   );
@@ -96,32 +95,7 @@ export function JobDetails({
               : []),
           ]}
         />
-        {(job.artwork || job.output) && (
-          <Descriptions
-            column={1}
-            size="small"
-            items={[
-              {
-                key: "render",
-                label: at.snapshot,
-                children: (
-                  <pre
-                    style={{ whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}
-                  >
-                    {JSON.stringify(
-                      {
-                        output: job.output ?? { format: "png" },
-                        artwork: job.artwork ?? null,
-                      },
-                      null,
-                      2,
-                    )}
-                  </pre>
-                ),
-              },
-            ]}
-          />
-        )}
+        {(job.artwork || job.output) && <ArtworkSummary job={job} />}
         <Button disabled={busy} onClick={onRestore}>
           {t.restore}
         </Button>

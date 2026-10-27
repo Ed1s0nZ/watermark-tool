@@ -175,13 +175,11 @@ test("two source sizes, three recipients: pinned logo/regions, six real JPEG cop
       .getByLabel("Logo文件", { exact: true })
       .evaluate((e: HTMLInputElement) => e.files?.length),
   ).toBe(0);
-  await page
-    .getByLabel("Logo文件", { exact: true })
-    .setInputFiles({
-      name: "wrong-logo.png",
-      mimeType: "image/png",
-      buffer: original,
-    });
+  await page.getByLabel("Logo文件", { exact: true }).setInputFiles({
+    name: "wrong-logo.png",
+    mimeType: "image/png",
+    buffer: original,
+  });
   await page.getByRole("button", { name: "校验并预览", exact: true }).click();
   await expect(
     page.getByText("恢复任务需要相同Logo，请核对摘要并重新选择。", {
@@ -199,6 +197,12 @@ test("two source sizes, three recipients: pinned logo/regions, six real JPEG cop
   await expect(
     page.getByText(new RegExp("恢复Logo摘要: " + created.artwork.logo.sha256)),
   ).toBeVisible();
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page
+    .locator(".ant-card")
+    .filter({ has: page.getByText("固定可见层与导出快照", { exact: true }) })
+    .last()
+    .scrollIntoViewIfNeeded();
   await page.screenshot({
     path: info.outputPath("jpeg-job-snapshot.png"),
     fullPage: true,

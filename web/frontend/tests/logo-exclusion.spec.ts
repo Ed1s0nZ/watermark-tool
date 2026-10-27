@@ -87,6 +87,47 @@ test("transparent logo, exact visible exclusions, touch editor and JPEG final ve
   );
   expect(unchanged.inside).toBe(0);
   expect(unchanged.outside).toBeGreaterThan(20);
+  await page
+    .getByRole("img", { name: "生成预览", exact: true })
+    .scrollIntoViewIfNeeded();
+  await page.screenshot({
+    path: info.outputPath("logo-exclusion-preview.png"),
+    fullPage: true,
+    animations: "disabled",
+  });
+  const jpgLogo = Buffer.from(
+    await page.evaluate(async (raw) => {
+      const img = await createImageBitmap(
+        new Blob([new Uint8Array(raw)], { type: "image/png" }),
+      );
+      const c = document.createElement("canvas");
+      c.width = img.width;
+      c.height = img.height;
+      const x = c.getContext("2d")!;
+      x.fillStyle = "#ffffff";
+      x.fillRect(0, 0, c.width, c.height);
+      x.drawImage(img, 0, 0);
+      img.close();
+      const b = await new Promise<Blob>((r) =>
+        c.toBlob((b) => r(b!), "image/jpeg", 0.9),
+      );
+      return Array.from(new Uint8Array(await b.arrayBuffer()));
+    }, Array.from(logo)),
+  );
+  await page
+    .getByLabel("Logo文件", { exact: true })
+    .setInputFiles({
+      name: "logo.jpg",
+      mimeType: "image/jpeg",
+      buffer: jpgLogo,
+    });
+  await page.getByRole("button", { name: "生成预览", exact: true }).click();
+  await expect(
+    page.getByRole("img", { name: "生成预览", exact: true }),
+  ).toBeVisible();
+  await page
+    .getByLabel("Logo文件", { exact: true })
+    .setInputFiles({ name: "logo.png", mimeType: "image/png", buffer: logo });
   // Both layers are previewed from the same independent source.
   await choose(page, "可见层组合", "文字＋Logo");
   await choose(page, "Logo位置", "右上");
@@ -113,6 +154,7 @@ test("transparent logo, exact visible exclusions, touch editor and JPEG final ve
   await expect(
     page.getByText(new RegExp(createHash("sha256").update(jpeg).digest("hex"))),
   ).toBeVisible();
+  await page.setViewportSize({ width: 1280, height: 1000 });
   await page
     .locator(".ant-card")
     .filter({ has: page.getByText("质量摘要", { exact: true }) })
@@ -127,14 +169,57 @@ test("transparent logo, exact visible exclusions, touch editor and JPEG final ve
   await expect(
     page.getByRole("img", { name: "生成预览", exact: true }),
   ).toBeVisible();
+  expect(
+    await page.evaluate(async (raw) => {
+      const marked = await createImageBitmap(
+        await (
+          await fetch(
+            (document.querySelector('img[alt="生成预览"]') as HTMLImageElement)
+              .src,
+          )
+        ).blob(),
+      );
+      const source = await createImageBitmap(
+        new Blob([new Uint8Array(raw)], { type: "image/png" }),
+      );
+      const read = (img: ImageBitmap) => {
+        const c = document.createElement("canvas");
+        c.width = img.width;
+        c.height = img.height;
+        const x = c.getContext("2d")!;
+        x.drawImage(img, 0, 0);
+        return x.getImageData(
+          Math.floor(img.width * 0.75),
+          Math.floor(img.height * 0.75),
+          Math.floor(img.width * 0.15),
+          Math.floor(img.height * 0.15),
+        ).data;
+      };
+      const a = read(source),
+        b = read(marked);
+      const same = a.every((v, i) => v === b[i]);
+      source.close();
+      marked.close();
+      return same;
+    }, Array.from(original)),
+  ).toBe(true);
   await choose(page, "样式", "单处");
-  await page
-    .getByLabel("Logo文件", { exact: true })
-    .setInputFiles({
-      name: "broken.png",
-      mimeType: "image/png",
-      buffer: Buffer.from("broken"),
-    });
+  await page.getByLabel("Logo文件", { exact: true }).setInputFiles({
+    name: "broken.png",
+    mimeType: "image/png",
+    buffer: Buffer.from("broken"),
+  });
+  await page.getByRole("button", { name: "生成预览", exact: true }).click();
+  await expect(
+    page.getByText("Logo、布局或区域无效，请检查尺寸、透明度和矩形范围。", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page.getByLabel("Logo文件", { exact: true }).setInputFiles({
+    name: "large.png",
+    mimeType: "image/png",
+    buffer: Buffer.alloc(5 * 1024 * 1024 + 1),
+  });
   await page.getByRole("button", { name: "生成预览", exact: true }).click();
   await expect(
     page.getByText("Logo、布局或区域无效，请检查尺寸、透明度和矩形范围。", {
@@ -143,10 +228,25 @@ test("transparent logo, exact visible exclusions, touch editor and JPEG final ve
   ).toBeVisible();
   await page
     .getByLabel("Logo文件", { exact: true })
+    .setInputFiles({ name: "logo.png", mimeType: "image/png", buffer: logo });
+  const oversizedLogo = Buffer.from(
+    await page.evaluate(async () => {
+      const c = document.createElement("canvas");
+      c.width = 1024;
+      c.height = 2048;
+      c.getContext("2d")!.fillRect(0, 0, c.width, c.height);
+      const b = await new Promise<Blob>((r) =>
+        c.toBlob((b) => r(b!), "image/png"),
+      );
+      return Array.from(new Uint8Array(await b.arrayBuffer()));
+    }),
+  );
+  await page
+    .getByLabel("Logo文件", { exact: true })
     .setInputFiles({
-      name: "large.png",
+      name: "pixels.png",
       mimeType: "image/png",
-      buffer: Buffer.alloc(5 * 1024 * 1024 + 1),
+      buffer: oversizedLogo,
     });
   await page.getByRole("button", { name: "生成预览", exact: true }).click();
   await expect(
@@ -208,6 +308,9 @@ test("transparent logo, exact visible exclusions, touch editor and JPEG final ve
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
+  await choose(page, "语言", "English");
+  await choose(page, "Appearance", "Dark");
+  await expect(page.locator(".ant-select-dropdown:visible")).toHaveCount(0);
   await canvas.scrollIntoViewIfNeeded();
   await page.screenshot({
     path: info.outputPath("logo-exclusion-mobile.png"),
@@ -216,12 +319,14 @@ test("transparent logo, exact visible exclusions, touch editor and JPEG final ve
   });
   for (let i = 0; i < 8; i++) await drawRegion(page, 0.1, 0.1, 0.03, 0.03);
   await expect(
-    page.getByRole("spinbutton", { name: "区域 8 x %", exact: true }),
+    page.getByRole("spinbutton", { name: "Region 8 x %", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("spinbutton", { name: "区域 9 x %", exact: true }),
+    page.getByRole("spinbutton", { name: "Region 9 x %", exact: true }),
   ).toHaveCount(0);
-  await page.getByRole("button", { name: "清空本图区域", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Clear image regions", exact: true })
+    .click();
   expect(createHash("sha256").update(original).digest("hex")).toBe(rawHash);
   expect(createHash("sha256").update(logo).digest("hex")).toBe(logoHash);
   expect(errors).toEqual([]);

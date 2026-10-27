@@ -179,24 +179,26 @@ export function ExclusionEditor({
               {t.number} {i + 1}
             </Typography.Text>
             {(["x", "y", "width", "height"] as const).map((k) => (
-              <InputNumber
-                key={k}
-                aria-label={`${t.number} ${i + 1} ${k} %`}
-                min={0}
-                max={100}
-                step={0.1}
-                precision={2}
-                value={r[k] * 100}
-                disabled={disabled}
-                style={{ width: 95 }}
-                onChange={(v) => {
-                  if (v === null) return;
-                  const next = { ...r, [k]: v / 100 };
-                  if (validRect(next))
-                    update(regions.map((old, n) => (n === i ? next : old)));
-                  else setError(true);
-                }}
-              />
+              <Space key={k} direction="vertical" size={2}>
+                <Typography.Text>{t[k]} %</Typography.Text>
+                <InputNumber
+                  aria-label={`${t.number} ${i + 1} ${k} %`}
+                  min={0}
+                  max={100}
+                  step={0.1}
+                  precision={2}
+                  value={r[k] * 100}
+                  disabled={disabled}
+                  style={{ width: 95 }}
+                  onChange={(v) => {
+                    if (v === null) return;
+                    const next = { ...r, [k]: v / 100 };
+                    if (validRect(next))
+                      update(regions.map((old, n) => (n === i ? next : old)));
+                    else setError(true);
+                  }}
+                />
+              </Space>
             ))}
             <Button
               disabled={disabled}
