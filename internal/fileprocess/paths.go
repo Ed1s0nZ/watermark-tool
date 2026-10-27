@@ -13,6 +13,11 @@ import (
 // OutputPaths computes every rename before execution. Returned paths are relative
 // to the archive's files/ root; reports live outside that root.
 func OutputPaths(sources []filebundle.Record, plans map[string]Plan) (map[string]string, error) {
+	return OutputPathsWithDirectories(sources, plans, nil)
+}
+
+// OutputPathsWithDirectories also reserves explicit empty directories from ZIP input.
+func OutputPathsWithDirectories(sources []filebundle.Record, plans map[string]Plan, directories []string) (map[string]string, error) {
 	if len(sources) < 1 || len(sources) > 100 {
 		return nil, ErrOptions
 	}
@@ -44,6 +49,12 @@ func OutputPaths(sources []filebundle.Record, plans map[string]Plan) (map[string
 	for attempt := 0; attempt <= len(sources); attempt++ {
 		counts := map[string]int{}
 		parents := map[string]bool{}
+		for _, dir := range directories {
+			if _, err := filebundle.SafePath(dir); err != nil {
+				return nil, err
+			}
+			parents[canonical(dir)] = true
+		}
 		for _, name := range names {
 			counts[canonical(name)]++
 			for parent := path.Dir(name); parent != "."; parent = path.Dir(parent) {

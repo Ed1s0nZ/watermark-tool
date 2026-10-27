@@ -51,3 +51,11 @@ func TestOutputPathsLongUTF8AndInvalidInputs(t *testing.T) {
 		}
 	}
 }
+
+func TestOutputPathsReserveExplicitEmptyDirectory(t *testing.T) {
+	id := strings.Repeat("a", 32)
+	paths, err := OutputPathsWithDirectories([]filebundle.Record{{ID: id, RelativePath: "photo.png"}}, map[string]Plan{id: {OutputExtension: "jpg"}}, []string{"photo.jpg"})
+	if err != nil || paths[id] == "photo.jpg" || !strings.Contains(paths[id], "~"+id) {
+		t.Fatal(paths, err)
+	}
+}

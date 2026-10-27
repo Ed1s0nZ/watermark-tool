@@ -86,3 +86,7 @@ Go1.26 所涉 service/watermark race、服务端完整 race（90.927s）、vet �
 ### C4 统一逐文件执行器
 
 fileprocess接入实际Go图片/PDF/五种Office兼容格式，固定服务端时间、输入摘要复核、最终成品真实提取/质量/SHA、私有临时文件与独占非覆盖提交、执行前输出重名规划。完整应用库夹具与独立重新打开验证通过，详见c4-file-executor-verification.md。Go1.26 fileprocess/filebundle race及vet通过。接下来接持久任务/审批桥接/API/UI，未把执行器完成等同C完成。
+
+### C5 混合任务持久运行时
+
+完成filetasks加密任务库、私有输入、队列、逐文件真实执行、成功项不重复的最多三次重试、取消/重启中断、部分成品与逐项报告ZIP、当前权限/key回调、下载SHA复核、容量预留与到期清理。显式空目录纳入输出重名规划。真实混合目录/ZIP/取消/撤权/重开/过期/篡改与容量race验证通过，证据见c5-task-runtime-verification.md。C6继续接团队/通用审批/API/前端，运行时完成不代替完整C验收。
