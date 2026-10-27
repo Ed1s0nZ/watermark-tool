@@ -1,3 +1,4 @@
+import { navigate } from "./navigation";
 import { test, expect } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
@@ -19,7 +20,7 @@ test("transparent logo, exact visible exclusions, touch editor and JPEG final ve
     logo = await logoBytes(page);
   const rawHash = createHash("sha256").update(original).digest("hex"),
     logoHash = createHash("sha256").update(logo).digest("hex");
-  await page.getByRole("menuitem", { name: "双水印模板", exact: true }).click();
+  await navigate(page, "双水印模板");
   await page.getByLabel("双水印原图", { exact: true }).setInputFiles({
     name: "source.png",
     mimeType: "image/png",

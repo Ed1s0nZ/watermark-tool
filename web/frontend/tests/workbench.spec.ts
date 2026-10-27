@@ -1,3 +1,4 @@
+import { navigate } from "./navigation";
 import { test, expect, Download } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
@@ -18,7 +19,7 @@ test("experiment, bilingual dual watermark, templates and truthful reports", asy
     .getByLabel("密码", { exact: true })
     .fill("local-test-password-2026");
   await page.getByRole("button", { name: "登录工作台", exact: true }).click();
-  await page.getByRole("menuitem", { name: "效果实验室", exact: true }).click();
+  await navigate(page, "效果实验室");
   await page
     .getByLabel("实验原图", { exact: true })
     .setInputFiles("../../internal/blind/testdata/clean.png");
@@ -68,7 +69,7 @@ test("experiment, bilingual dual watermark, templates and truthful reports", asy
     page.getByText("任务已取消，可以重试。", { exact: true }),
   ).toBeVisible();
   await page.unroute("**/api/workbench/lab");
-  await page.getByRole("menuitem", { name: "双水印模板", exact: true }).click();
+  await navigate(page, "双水印模板");
   await page
     .getByLabel("双水印原图", { exact: true })
     .setInputFiles("../../internal/blind/testdata/clean.png");
@@ -152,7 +153,7 @@ test("experiment, bilingual dual watermark, templates and truthful reports", asy
       localStorage.getItem("watermark.visible.templates.v1"),
     ),
   ).not.toContain("内部模板");
-  await page.getByRole("menuitem", { name: "分发记录", exact: true }).click();
+  await navigate(page, "分发记录");
   await page.getByRole("tab", { name: "图片溯源", exact: true }).click();
   await page
     .getByLabel("待溯源图片", { exact: true })
@@ -203,10 +204,7 @@ test("experiment, bilingual dual watermark, templates and truthful reports", asy
   await page
     .getByRole("button", { name: "Open navigation", exact: true })
     .click();
-  await page
-    .getByRole("menuitem", { name: "Dual watermark templates", exact: true })
-    .last()
-    .click();
+  await navigate(page, "Dual watermark templates");
   await expect(
     page.getByRole("heading", {
       name: "Dual watermark templates",
@@ -243,10 +241,7 @@ test("experiment, bilingual dual watermark, templates and truthful reports", asy
   await page
     .getByRole("button", { name: "Open navigation", exact: true })
     .click();
-  await page
-    .getByRole("menuitem", { name: "Effect laboratory", exact: true })
-    .last()
-    .click();
+  await navigate(page, "Effect laboratory");
   await expect(
     page.getByRole("heading", { name: "Effect laboratory", exact: true }),
   ).toBeVisible();
@@ -279,10 +274,7 @@ test("experiment, bilingual dual watermark, templates and truthful reports", asy
   await page
     .getByRole("button", { name: "Open navigation", exact: true })
     .click();
-  await page
-    .getByRole("menuitem", { name: "Dual watermark templates", exact: true })
-    .last()
-    .click();
+  await navigate(page, "Dual watermark templates");
   await page
     .getByLabel("Dual watermark source", { exact: true })
     .setInputFiles("../../internal/blind/testdata/clean.png");
@@ -319,10 +311,7 @@ test("experiment, bilingual dual watermark, templates and truthful reports", asy
   await page
     .getByRole("button", { name: "Open navigation", exact: true })
     .click();
-  await page
-    .getByRole("menuitem", { name: "Distribution records", exact: true })
-    .last()
-    .click();
+  await navigate(page, "Distribution records");
   await page.getByRole("tab", { name: "Image trace", exact: true }).click();
   await page
     .getByLabel("Image to trace", { exact: true })

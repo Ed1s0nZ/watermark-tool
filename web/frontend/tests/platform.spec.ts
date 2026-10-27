@@ -1,3 +1,4 @@
+import { navigate } from "./navigation";
 import { test, expect } from "@playwright/test";
 import { Buffer } from "node:buffer";
 import { readFile, open } from "node:fs/promises";
@@ -165,7 +166,7 @@ test("authenticated platform, watermark round trip, preferences and mobile navig
     animations: "disabled",
   });
   await page.setViewportSize({ width: 1280, height: 720 });
-  await page.getByRole("menuitem", { name: "Extract watermark" }).click();
+  await navigate(page, "Extract watermark");
   const extract = page.locator(".content-inner > div").filter({
     has: page.getByRole("heading", {
       name: "Extract a watermark",
@@ -212,7 +213,7 @@ test("authenticated platform, watermark round trip, preferences and mobile navig
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await page.emulateMedia({ colorScheme: "dark" });
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-  await page.getByRole("menuitem", { name: "Overview" }).click();
+  await navigate(page, "Overview");
   await expect(page.locator(".ant-select-dropdown:visible")).toHaveCount(0);
   await page.evaluate(() => window.scrollTo(0, 0));
   await page.screenshot({
@@ -238,10 +239,7 @@ test("authenticated platform, watermark round trip, preferences and mobile navig
     )
     .toBe(true);
   await page.getByRole("button", { name: "Open navigation" }).click();
-  await page
-    .getByRole("dialog")
-    .getByRole("menuitem", { name: "Settings" })
-    .click();
+  await navigate(page, "Settings");
   await expect(
     page.getByRole("heading", { name: "Settings", exact: true }),
   ).toBeVisible();
@@ -258,10 +256,7 @@ test("authenticated platform, watermark round trip, preferences and mobile navig
     animations: "disabled",
   });
   await page.getByRole("button", { name: "Open navigation" }).click();
-  await page
-    .getByRole("dialog")
-    .getByRole("menuitem", { name: "Add watermark" })
-    .click();
+  await navigate(page, "Add watermark");
   await page
     .getByPlaceholder("e.g. Internal · Project ID · Document owner")
     .fill("draft after expiry");
@@ -335,7 +330,7 @@ test("Go blind mode authenticates payload and keeps legacy mode", async ({
   const download = await promise;
   expect(download.suggestedFilename()).toMatch(/\.png$/);
   const path = await download.path();
-  await page.getByRole("menuitem", { name: "提取水印", exact: true }).click();
+  await navigate(page, "提取水印");
   await chooseMode();
   const extract = page
     .locator(".content-inner > div")

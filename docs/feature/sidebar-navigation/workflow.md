@@ -25,3 +25,12 @@
 - Phase plan：按阶段提交推送；本地真实构建/浏览器完成后交付main，不部署/打标签。
 
 F0完成：核对本地Ant Design安装类型，Menu支持items/openKeys/inlineCollapsed，Drawer单独呈现。现有Shell低于800行，本轮不是大文件/架构重构；将菜单结构抽成共享小模块，避免桌面/手机两份复制。
+
+## F1–F4 实施记录
+
+- F1：requirements.md 固化已确认范围，独立提交9e01604。
+- F2/F3：design.md 与 implementation-plan.md 固化共享分组、状态与验收，提交d4ba5fb。
+- F4：共用 navigation.ts / SidebarNav；Shell 保留全部页面与 hash，只接入导航状态。桌面完整展开状态与折叠浮层分离；手机复用完整菜单、抽屉适度加宽以展示英文叶项。
+- 原生 Menu 默认 hover 延迟会在选中后重新打开浮层，专项真实浏览器复现；将公开 subMenuOpenDelay 设为0后通过，不引入定时屏蔽或自制浮层。
+- 原有浏览器用例通过共享导航 helper 展开父组再点选，不绕过 UI；登录等待仍使用工作台保证认证完成。
+- 构建已通过；新增专项已通过十二叶项、手动/键盘开关、直链刷新、历史、品牌/工作台/账号跳转、折叠浮层、桌面收起后手机抽屉、中英文/暗色、480px短屏底部与内部滚动。

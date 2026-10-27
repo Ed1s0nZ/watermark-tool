@@ -1,3 +1,4 @@
+import { navigate } from "./navigation";
 import { test, expect } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
@@ -51,9 +52,7 @@ test("two source sizes, three recipients: pinned logo/regions, six real JPEG cop
       return Array.from(new Uint8Array(await b.arrayBuffer()));
     }, Array.from(original)),
   );
-  await page
-    .getByRole("menuitem", { name: "多图分发任务", exact: true })
-    .click();
+  await navigate(page, "多图分发任务");
   await page.evaluate(() =>
     localStorage.setItem(
       "watermark.policies.v1",

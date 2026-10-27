@@ -6,25 +6,18 @@ import {
   Drawer,
   Dropdown,
   Layout,
-  Menu,
   Space,
   Typography,
   theme,
 } from "antd";
 import {
-  AppstoreOutlined,
-  CopyOutlined,
-  DatabaseOutlined,
-  KeyOutlined,
-  FileProtectOutlined,
   LogoutOutlined,
   MenuFoldOutlined,
   MenuOutlined,
   MenuUnfoldOutlined,
   SafetyCertificateOutlined,
-  ScanOutlined,
-  SettingOutlined,
   UserOutlined,
+  SettingOutlined,
 } from "@ant-design/icons";
 import { api, User } from "./api";
 import { useText } from "./i18n";
@@ -45,24 +38,11 @@ import { BatchPage } from "./BatchPage";
 import { RecordsPage } from "./RecordsPage";
 import { KeysPage } from "./KeysPage";
 import { ErrorNotice } from "./ErrorNotice";
-const pages = [
-  "trace",
-  "overview",
-  "jobs",
-  "audit",
-  "lab",
-  "dual",
-  "add",
-  "extract",
-  "batches",
-  "records",
-  "keys",
-  "settings",
-] as const;
-type Page = (typeof pages)[number];
+import { SidebarNav } from "./SidebarNav";
+import { isPage, parentGroup, type Page } from "./navigation";
 function currentPage(): Page {
   const page = location.hash.slice(1);
-  return pages.includes(page as Page) ? (page as Page) : "overview";
+  return isPage(page) ? page : "overview";
 }
 export function Shell({
   user,
@@ -83,6 +63,18 @@ export function Shell({
   const [page, setPage] = useState<Page>(currentPage);
   const [collapsed, setCollapsed] = useState(false);
   const [mobile, setMobile] = useState(false);
+  const [openGroups, setOpenGroups] = useState<string[]>(() => {
+    const parent = parentGroup(currentPage());
+    return parent ? [parent] : [];
+  });
+  const [popupGroups, setPopupGroups] = useState<string[]>([]);
+  useEffect(() => {
+    const parent = parentGroup(page);
+    if (parent) {
+      setOpenGroups(keys => keys.includes(parent) ? keys : [...keys, parent]);
+    }
+    setPopupGroups([]);
+  }, [page, collapsed]);
   const [types, setTypes] = useState<string[]>([]);
   const [typeError, setTypeError] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -113,72 +105,19 @@ export function Shell({
     void loadTypes();
   }, []);
   const navigate = (value: string) => {
+    if (!isPage(value)) return;
     location.hash = value;
-    setPage(value as Page);
+    setPage(value);
+    const parent = parentGroup(value);
+    if (parent) {
+      setOpenGroups(keys => keys.includes(parent) ? keys : [...keys, parent]);
+    }
+    setPopupGroups([]);
     setMobile(false);
   };
   useEffect(() => {
     contentRef.current?.scrollTo({ top: 0 });
   }, [page]);
-  const items = [
-    {
-      key: "overview",
-      icon: <AppstoreOutlined aria-hidden="true" />,
-      label: t.overview,
-    },
-    {
-      key: "add",
-      icon: <FileProtectOutlined aria-hidden="true" />,
-      label: t.add,
-    },
-    {
-      key: "extract",
-      icon: <ScanOutlined aria-hidden="true" />,
-      label: t.extract,
-    },
-    {
-      key: "batches",
-      icon: <CopyOutlined aria-hidden="true" />,
-      label: t.batches,
-    },
-    {
-      key: "records",
-      icon: <DatabaseOutlined aria-hidden="true" />,
-      label: t.records,
-    },
-    {
-      key: "trace",
-      icon: <ScanOutlined aria-hidden="true" />,
-      label: ft.trace,
-    },
-    { key: "lab", icon: <ScanOutlined aria-hidden="true" />, label: wt.lab },
-    {
-      key: "dual",
-      icon: <FileProtectOutlined aria-hidden="true" />,
-      label: wt.dual,
-    },
-    { key: "jobs", icon: <CopyOutlined aria-hidden="true" />, label: jt.jobs },
-    {
-      key: "audit",
-      icon: <DatabaseOutlined aria-hidden="true" />,
-      label: jt.audit,
-    },
-    { key: "keys", icon: <KeyOutlined aria-hidden="true" />, label: t.keys },
-    {
-      key: "settings",
-      icon: <SettingOutlined aria-hidden="true" />,
-      label: t.settings,
-    },
-  ];
-  const nav = (
-    <Menu
-      mode="inline"
-      selectedKeys={[page]}
-      items={items}
-      onClick={({ key }) => navigate(key)}
-      style={{ border: 0, background: "transparent" }}
-    />
-  );
   const brand = (
     <a href="#overview" className="brand sidebar-brand">
       <span className="brand-mark">
@@ -219,7 +158,12 @@ export function Shell({
         <div className="sidebar-section">
           {!collapsed ? t.workspace : "···"}
         </div>
-        <div className="sidebar-navigation">{nav}</div>
+        <div className="sidebar-navigation">
+          <SidebarNav page={page} collapsed={collapsed}
+            openKeys={collapsed ? popupGroups : openGroups}
+            onOpenChange={collapsed ? setPopupGroups : setOpenGroups}
+            onNavigate={navigate} />
+        </div>
         <div className="sidebar-bottom">
           <div className="sidebar-status">
             <span className="status-dot" />
@@ -245,12 +189,13 @@ export function Shell({
       <Drawer
         title={t.brand}
         placement="left"
-        width={280}
+        width="min(320px, calc(100vw - 32px))"
         open={mobile}
         onClose={() => setMobile(false)}
         closeIcon={<span aria-label={t.close}>×</span>}
       >
-        {nav}
+        <SidebarNav page={page} mobile openKeys={openGroups}
+          onOpenChange={setOpenGroups} onNavigate={navigate} />
       </Drawer>
       <Layout className="platform-main">
         <Layout.Header

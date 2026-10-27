@@ -1,3 +1,4 @@
+import { navigate } from "./navigation";
 import { test, expect, Download } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
@@ -35,7 +36,7 @@ test("two images × three recipients: dual-watermark delivery, trace and audit",
     .fill("local-test-password-2026");
   await page.getByRole("button", { name: "登录工作台", exact: true }).click();
   await expect(
-    page.getByRole("menuitem", { name: "多图分发任务", exact: true }),
+    page.getByRole("menuitem", { name: "工作台", exact: true }),
   ).toBeVisible();
   const initialCount = (
     await (
@@ -64,9 +65,7 @@ test("two images × three recipients: dual-watermark delivery, trace and audit",
       return Array.from(new Uint8Array(await blob.arrayBuffer()));
     }, Array.from(original)),
   );
-  await page
-    .getByRole("menuitem", { name: "多图分发任务", exact: true })
-    .click();
+  await navigate(page, "多图分发任务");
   await page.getByLabel("任务原图", { exact: true }).setInputFiles([
     { name: "one.png", mimeType: "image/png", buffer: original },
     { name: "two.png", mimeType: "image/png", buffer: second },
@@ -205,7 +204,7 @@ test("two images × three recipients: dual-watermark delivery, trace and audit",
   await expect(
     page.getByRole("button", { name: "下载整套 ZIP", exact: true }),
   ).toBeVisible();
-  await page.getByRole("menuitem", { name: "操作审计", exact: true }).click();
+  await navigate(page, "操作审计");
   await page
     .getByRole("textbox", { name: "动作", exact: true })
     .fill("task.create");

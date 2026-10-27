@@ -1,3 +1,4 @@
+import { navigate } from "./navigation";
 import { test, expect } from "@playwright/test";
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
@@ -12,9 +13,7 @@ test("cancel preparing upload, preserve identity on retry and recover on mobile 
     .getByLabel("密码", { exact: true })
     .fill("local-test-password-2026");
   await page.getByRole("button", { name: "登录工作台", exact: true }).click();
-  await page
-    .getByRole("menuitem", { name: "多图分发任务", exact: true })
-    .click();
+  await navigate(page, "多图分发任务");
   await page
     .getByLabel("任务原图", { exact: true })
     .setInputFiles("../../internal/blind/testdata/clean.png");

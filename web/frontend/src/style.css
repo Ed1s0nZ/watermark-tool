@@ -97,18 +97,24 @@ a {
   color: var(--muted);
   height: 50px;
 }
-.desktop-sidebar .ant-menu {
+.desktop-sidebar .sidebar-navigation > .ant-menu {
   padding: 0 10px;
 }
-.desktop-sidebar .ant-menu-item {
+.desktop-sidebar .ant-menu-item,
+.desktop-sidebar .ant-menu-submenu-title {
   height: 44px;
   line-height: 44px;
   margin-block: 6px;
 }
+.desktop-sidebar .ant-menu-sub .ant-menu-item {
+  height: 40px;
+  line-height: 40px;
+  margin-block: 4px;
+}
 .sidebar-navigation {
- height: calc(100% - 224px);
- overflow-y:auto;
- overflow-x:hidden;
+  height: calc(100% - 224px);
+  overflow-y: auto;
+  overflow-x: hidden;
 }
 .sidebar-bottom {
   position: absolute;

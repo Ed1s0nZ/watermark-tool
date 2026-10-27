@@ -1,3 +1,4 @@
+import { navigate } from "./navigation";
 import { test, expect, Download } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 async function bytes(d: Download) {
@@ -18,9 +19,7 @@ test("policies, streamed mixed tracing, cancellation and quality gating", async 
     .getByLabel("密码", { exact: true })
     .fill("local-test-password-2026");
   await page.getByRole("button", { name: "登录工作台", exact: true }).click();
-  await page
-    .getByRole("menuitem", { name: "多图分发任务", exact: true })
-    .click();
+  await navigate(page, "多图分发任务");
   await page.getByLabel("策略名称", { exact: true }).fill("TeamPreset");
   await page.getByRole("button", { name: "保存为新策略", exact: true }).click();
   const stored = await page.evaluate(() =>
@@ -148,7 +147,7 @@ test("policies, streamed mixed tracing, cancellation and quality gating", async 
   });
   expect(generated.status()).toBe(200);
   const marked = await generated.body();
-  await page.getByRole("menuitem", { name: "批量溯源", exact: true }).click();
+  await navigate(page, "批量溯源");
   await page.getByLabel("待溯源图片", { exact: true }).setInputFiles([
     { name: "same.png", mimeType: "image/png", buffer: original },
     { name: "same.png", mimeType: "image/png", buffer: marked },
@@ -221,7 +220,7 @@ test("policies, streamed mixed tracing, cancellation and quality gating", async 
       (i: { status: string }) => i.status === "not_confirmed",
     ),
   ).toBe(true);
-  await page.getByRole("menuitem", { name: "双水印模板", exact: true }).click();
+  await navigate(page, "双水印模板");
   await page.getByLabel("双水印原图", { exact: true }).setInputFiles({
     name: "clean.png",
     mimeType: "image/png",
@@ -287,9 +286,7 @@ test("policies, streamed mixed tracing, cancellation and quality gating", async 
   await page
     .getByRole("button", { name: "Open navigation", exact: true })
     .click();
-  await page
-    .getByRole("menuitem", { name: "Batch tracing", exact: true })
-    .click();
+  await navigate(page, "Batch tracing");
   await page.getByLabel("Images to trace", { exact: true }).setInputFiles([
     { name: "raw.png", mimeType: "image/png", buffer: original },
     { name: "marked.png", mimeType: "image/png", buffer: marked },

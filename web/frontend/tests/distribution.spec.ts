@@ -1,3 +1,4 @@
+import { navigate } from "./navigation";
 import { test, expect } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
@@ -27,7 +28,7 @@ test("distribution lifecycle with registration, rotation and regenerated ZIP", a
     .getByLabel("密码", { exact: true })
     .fill("local-test-password-2026");
   await page.getByRole("button", { name: "登录工作台", exact: true }).click();
-  await page.getByRole("menuitem", { name: "批量副本", exact: true }).click();
+  await navigate(page, "批量副本");
   await page
     .getByLabel("批次原图", { exact: true })
     .setInputFiles("../../internal/blind/testdata/clean.png");
@@ -60,7 +61,7 @@ test("distribution lifecycle with registration, rotation and regenerated ZIP", a
     animations: "disabled",
   });
 
-  await page.getByRole("menuitem", { name: "分发记录", exact: true }).click();
+  await navigate(page, "分发记录");
   await expect(
     page
       .locator(".content-inner > div")
@@ -89,7 +90,7 @@ test("distribution lifecycle with registration, rotation and regenerated ZIP", a
     fullPage: true,
     animations: "disabled",
   });
-  await page.getByRole("menuitem", { name: "密钥版本", exact: true }).click();
+  await navigate(page, "密钥版本");
   await page.getByRole("button", { name: "创建密钥版本", exact: true }).click();
   const candidate = page.getByRole("row").filter({
     has: page.getByRole("button", { name: "设为当前", exact: true }),
@@ -102,7 +103,7 @@ test("distribution lifecycle with registration, rotation and regenerated ZIP", a
   await expect(newRow).toContainText("当前嵌入");
   const legacy = page.getByRole("row").filter({ hasText: "legacy-env" });
   await expect(legacy).toContainText("仅提取");
-  await page.getByRole("menuitem", { name: "批量副本", exact: true }).click();
+  await navigate(page, "批量副本");
   await page
     .getByLabel("接收人名单 CSV", { exact: true })
     .fill("recipient_id,name\n4,新版本接收人");
@@ -118,7 +119,7 @@ test("distribution lifecycle with registration, rotation and regenerated ZIP", a
   });
   const nextBatch = (await query.json()).items[0];
   expect(nextBatch.key_id).toBe(newID);
-  await page.getByRole("menuitem", { name: "分发记录", exact: true }).click();
+  await navigate(page, "分发记录");
   await page.getByRole("tab", { name: "批次", exact: true }).click();
   const row = page.getByRole("row").filter({ hasText: batch! });
   await row.getByRole("button", { name: "重新生成 ZIP", exact: true }).click();
@@ -136,7 +137,7 @@ test("distribution lifecycle with registration, rotation and regenerated ZIP", a
     createHash("sha256").update(bytes).digest("hex"),
   );
   await dialog.getByRole("button", { name: "Close", exact: true }).click();
-  await page.getByRole("menuitem", { name: "密钥版本", exact: true }).click();
+  await navigate(page, "密钥版本");
   await page
     .getByRole("row")
     .filter({ hasText: "legacy-env" })
@@ -167,10 +168,7 @@ test("distribution lifecycle with registration, rotation and regenerated ZIP", a
     animations: "disabled",
   });
   await page.getByRole("button", { name: "Open navigation" }).click();
-  await page
-    .getByRole("dialog")
-    .getByRole("menuitem", { name: "Batch copies", exact: true })
-    .click();
+  await navigate(page, "Batch copies");
   await expect(
     page.getByRole("heading", { name: "Batch copies", exact: true }),
   ).toBeVisible();

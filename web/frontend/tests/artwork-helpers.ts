@@ -7,7 +7,7 @@ export async function login(page: Page) {
     .fill("local-test-password-2026");
   await page.getByRole("button", { name: "登录工作台", exact: true }).click();
   await expect(
-    page.getByRole("menuitem", { name: "多图分发任务", exact: true }),
+    page.getByRole("menuitem", { name: "工作台", exact: true }),
   ).toBeVisible();
 }
 export async function choose(page: Page, label: string, title: string) {
