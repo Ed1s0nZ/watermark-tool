@@ -36,3 +36,10 @@
 - `visibleWatermark.ts`的Template仅含name/style，本机最多20个，不保存文字/模式。
 - `internal/workbench/lab.go`已有PSNR，但只用于实验；`internal/delivery/archive.go`已逐份提取校验，不将它重述为新功能。
 - 只读检查改变了范围判断：本轮强调批量汇总、组合预设和生产质量度量；没有修改生产代码。
+
+## F1：需求确认包
+
+- requirements.md为Pending Confirmation，12项要求、8项验收、5项待确认假设；每项建议来源与已有约定分开标识。
+- 原建议“质量检查”细化为默认展示、可选PSNR门槛，并明确双水印参考图，避免把已有提取验证或低PSNR直接解释为产品缺陷。
+- 当前只提交需求文档，未修改生产代码。轻量检查包括本地链接、需求验收映射和git diff --check；尚未进入代码测试阶段。
+- 按requirements-doc-write的明确确认门槛暂停设计/实现，等待用户确认此快照；目标保持active，不宣称本轮功能已完成。
