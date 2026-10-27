@@ -17,7 +17,7 @@
 ## Feature Lifecycle Report
 
 - Branch：main，沿用用户直接main交付约定；起始42893c0，origin/main一致，工作区干净，之前检查无AGENTS.md。
-- Current phase：F0→F1；这次是已经具体提出的导航方案，用户紧接着要求优化，按此范围执行，不复用无关功能确认。
+- Current phase：F6完成；这次是已经具体提出的导航方案，用户紧接着要求优化，按此范围执行，不复用无关功能确认。
 - Problem / desired behavior：平铺12个入口查找拥挤；改为一个独立入口与四组，支持当前父级自动展开、折叠浮层和同构手机导航。
 - Affected：前端导航模型/组件、Shell、样式、i18n、浏览器导航助手与验收；不改后端/API/数据格式/留存。
 - Required docs：requirements/design/implementation-plan/verification、README及日期CHANGELOG。
@@ -34,3 +34,12 @@ F0完成：核对本地Ant Design安装类型，Menu支持items/openKeys/inlineC
 - 原生 Menu 默认 hover 延迟会在选中后重新打开浮层，专项真实浏览器复现；将公开 subMenuOpenDelay 设为0后通过，不引入定时屏蔽或自制浮层。
 - 原有浏览器用例通过共享导航 helper 展开父组再点选，不绕过 UI；登录等待仍使用工作台保证认证完成。
 - 构建已通过；新增专项已通过十二叶项、手动/键盘开关、直链刷新、历史、品牌/工作台/账号跳转、折叠浮层、桌面收起后手机抽屉、中英文/暗色、480px短屏底部与内部滚动。
+
+## F5–F6 验证与交付
+
+- F4 实现提交 f4e1cc5；F5 验证与 README 提交3ef9f8f，均已推送main。
+- 最终 TypeScript/Vite 生产构建通过；9个独立本地服务窗口、10项真实浏览器用例全部通过；diff空白检查通过。
+- 已逐张打开桌面、折叠与手机英文暗色截图并归档，见verification.md。状态/边界与既有数据契约无变更，无上游依赖缺口。
+- 根CHANGELOG按2026-10-27/其他变更补齐范围、效果与验证；无服务部署、标签或额外功能扩展。
+- 最终审查：路由模型是分组唯一来源，桌面/手机共用组件；现有页面挂载保留，折叠状态不传入手机，父组可手动关闭。没有遗留实现项。
+- 推荐后续：以真实使用反馈调整分组命名与顺序，暂不继续增加层级。
