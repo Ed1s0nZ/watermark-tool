@@ -1,0 +1,27 @@
+# 二级侧边栏：阶段记录
+
+## Workflow Gate Report / F0
+
+- User request：用户询问侧边栏是否更适合二级菜单，已收到明确的五入口/四分组方案后提出目标“最佳实践优化”。
+- Detected phase：P1–P3，范围已由紧邻的具体导航方案给出，本轮落实该方案。
+- Task type：局部导航信息架构与交互优化；不扩展其他功能候选。
+- Required upstream artifacts：叶路由映射、展开/折叠/移动交互、兼容和验收。
+- Found artifacts：12个现有路由、Ant Design Menu/Drawer、全高独立滚动侧栏、中英/主题、完整真实浏览器套件。
+- Missing/weak artifacts：缺少分组模型及状态策略，现有测试按平铺入口查找。
+- Implementation allowed now：先记录紧邻方案的需求与设计，再实施；无需新增产品政策确认。
+- Prework required：确认映射及非功能边界，控制不同形态菜单状态。
+- Execution scope：工作台独立，水印制作/分发管理/验证分析/系统管理四组，最多两级。
+- Acceptance criteria：见requirements.md；保留所有hash、页面及业务行为。
+- Risks/assumptions：折叠Sider不能使手机菜单也折叠；外部路由变化必须展开父级；浮层不残留，手动开合可用。
+
+## Feature Lifecycle Report
+
+- Branch：main，沿用用户直接main交付约定；起始42893c0，origin/main一致，工作区干净，之前检查无AGENTS.md。
+- Current phase：F0→F1；这次是已经具体提出的导航方案，用户紧接着要求优化，按此范围执行，不复用无关功能确认。
+- Problem / desired behavior：平铺12个入口查找拥挤；改为一个独立入口与四组，支持当前父级自动展开、折叠浮层和同构手机导航。
+- Affected：前端导航模型/组件、Shell、样式、i18n、浏览器导航助手与验收；不改后端/API/数据格式/留存。
+- Required docs：requirements/design/implementation-plan/verification、README及日期CHANGELOG。
+- Tests：所有叶路由、hash直达/刷新/前进后退/工作台和账号入口、父级开合、折叠浮层/展开恢复、390px菜单、中英/浅深、底部固定与全部旧业务浏览器。
+- Phase plan：按阶段提交推送；本地真实构建/浏览器完成后交付main，不部署/打标签。
+
+F0完成：核对本地Ant Design安装类型，Menu支持items/openKeys/inlineCollapsed，Drawer单独呈现。现有Shell低于800行，本轮不是大文件/架构重构；将菜单结构抽成共享小模块，避免桌面/手机两份复制。
