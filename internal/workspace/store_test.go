@@ -193,3 +193,24 @@ func TestPrivateDirectoryAndMissingCipher(t *testing.T) {
 		t.Fatal("silently bootstrapped over missing state")
 	}
 }
+
+func TestCapacityReserveAllowsAdministrativeRevocation(t *testing.T) {
+	s, _, _ := testStore(t)
+	user, err := s.CreateUser("admin", "alice", "test-password-alice")
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.data.Events = make([]Event, maxAudit-512)
+	for i := range s.data.Events {
+		s.data.Events[i] = Event{Sequence: uint64(i + 1), At: now(), Actor: "admin", Action: "test", Target: ""}
+	}
+	if _, err := s.CreateTeam("admin", "must fail"); !errors.Is(err, ErrLimit) {
+		t.Fatal("ordinary writes consumed security reserve", err)
+	}
+	if _, err := s.UpdateUser("admin", "alice", user.Revision, false, ""); err != nil {
+		t.Fatal("capacity prevented user revocation", err)
+	}
+	if _, ok := s.CredentialVersion("alice"); ok {
+		t.Fatal("user remains active")
+	}
+}

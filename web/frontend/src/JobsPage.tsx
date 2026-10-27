@@ -1,3 +1,4 @@
+import { scopedBrowserKey } from "./api";
 import {
   AdvancedSettings,
   EmptyPreview,
@@ -50,7 +51,7 @@ import { JobDetails } from "./JobDetails";
 const selectionKey = "watermark.jobs.current.v1";
 function saved() {
   try {
-    const id = localStorage.getItem(selectionKey) ?? "";
+    const id = localStorage.getItem(scopedBrowserKey(selectionKey)) ?? "";
     return /^[a-f0-9]{32}$/.test(id) ? id : "";
   } catch {
     return "";
@@ -103,7 +104,7 @@ export function JobsPage() {
     setTask(job);
     setPollError(undefined);
     try {
-      localStorage.setItem(selectionKey, job.id);
+      localStorage.setItem(scopedBrowserKey(selectionKey), job.id);
     } catch {}
   }
   function update(job: DeliveryJob) {

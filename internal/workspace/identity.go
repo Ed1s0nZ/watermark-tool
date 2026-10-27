@@ -115,3 +115,6 @@ func (s *Store) Users(actor string) ([]User, error) {
 	return out, nil
 }
 func (s *Store) IsAdmin(actor string) bool { return actor == s.admin }
+
+// Administrator returns the configured bootstrap account name, never credentials.
+func (s *Store) Administrator() string { return s.admin }

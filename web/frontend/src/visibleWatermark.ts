@@ -1,3 +1,4 @@
+import { scopedBrowserKey } from "./api";
 export interface Style {
   mode: "single" | "tile";
   position: "topLeft" | "topRight" | "center" | "bottomLeft" | "bottomRight";
@@ -41,7 +42,7 @@ export function validStyle(v: unknown): v is Style {
   );
 }
 export function loadTemplates(): Template[] {
-  const raw = localStorage.getItem(storageKey);
+  const raw = localStorage.getItem(scopedBrowserKey(storageKey));
   if (!raw) return [];
   const v = JSON.parse(raw);
   if (
@@ -69,7 +70,7 @@ export function storeTemplates(items: Template[]) {
   )
     throw Error("storage");
   localStorage.setItem(
-    storageKey,
+    scopedBrowserKey(storageKey),
     JSON.stringify({
       version: 1,
       items: items.map((i) => ({ name: i.name, style: i.style })),

@@ -9,6 +9,27 @@ export class APIError extends Error {
   }
 }
 let authEpoch = 0;
+let engineTeam = "";
+let browserScope = "";
+export function setEngineTeam(id: string, username = "") {
+  engineTeam = id && id !== "personal" ? id : "";
+  browserScope = engineTeam
+    ? `${encodeURIComponent(username)}/${engineTeam}`
+    : "";
+}
+export function scopedBrowserKey(key: string) {
+  return browserScope ? `${key}.workspace.${browserScope}` : key;
+}
+function scopedPath(path: string) {
+  const scoped =
+    /^\/(jobs|platform|audit|workbench)(\/|$)/.test(path) ||
+    ["/supported-types", "/add-watermark", "/extract-watermark"].some(
+      (value) => path.split("?")[0] === value,
+    );
+  return engineTeam && scoped
+    ? `/workspace/teams/${encodeURIComponent(engineTeam)}/engine/api${path}`
+    : path;
+}
 export function advanceAuthEpoch() {
   authEpoch++;
 }
@@ -16,7 +37,7 @@ export async function api(path: string, init?: RequestInit): Promise<Response> {
   const requestedEpoch = authEpoch;
   let response: Response;
   try {
-    response = await fetch(`/api${path}`, {
+    response = await fetch(`/api${scopedPath(path)}`, {
       ...init,
       credentials: "same-origin",
     });
@@ -52,4 +73,5 @@ export async function api(path: string, init?: RequestInit): Promise<Response> {
 }
 export interface User {
   username: string;
+  administrator?: boolean;
 }

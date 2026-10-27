@@ -170,8 +170,16 @@ func (s *Store) change(actor, team, action, target string, mutate func(*state) e
 	if err := mutate(&next); err != nil {
 		return err
 	}
-	if len(next.Events) >= maxAudit {
+	// Reserve bounded audit/storage capacity for environment-admin revocation.
+	critical := actor == s.admin && (action == "user.update" || action == "team.member" || action == "team.update")
+	if len(next.Events) >= maxAudit || !critical && len(next.Events) >= maxAudit-512 {
 		return ErrLimit
+	}
+	if !critical {
+		encoded, err := json.Marshal(next)
+		if err != nil || len(encoded) > maxStateBytes-(1<<20) {
+			return ErrLimit
+		}
 	}
 	next.Events = append(next.Events, Event{Sequence: uint64(len(next.Events) + 1), At: now(), Actor: actor, TeamID: team, Action: action, Target: target})
 	return s.commit(next)

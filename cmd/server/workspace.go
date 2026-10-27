@@ -78,7 +78,7 @@ func registerWorkspace(api *gin.RouterGroup, store *workspace.Store, engines *te
 			workspaceError(c, err)
 			return
 		}
-		c.JSON(200, gin.H{"username": c.GetString("username"), "administrator": store.IsAdmin(c.GetString("username")), "teams": teams})
+		c.JSON(200, gin.H{"username": c.GetString("username"), "administrator": store.IsAdmin(c.GetString("username")), "environment_admin": store.Administrator(), "teams": teams})
 	})
 	group.GET("/users", func(c *gin.Context) {
 		users, err := store.Users(c.GetString("username"))
@@ -106,13 +106,17 @@ func registerWorkspace(api *gin.RouterGroup, store *workspace.Store, engines *te
 	group.PUT("/users/:username", RateLimitMiddleware(), func(c *gin.Context) {
 		var input struct {
 			Revision uint64 `json:"revision"`
-			Enabled  bool   `json:"enabled"`
+			Enabled  *bool  `json:"enabled"`
 			Password string `json:"password"`
 		}
 		if !workspaceJSON(c, &input) {
 			return
 		}
-		user, err := store.UpdateUser(c.GetString("username"), c.Param("username"), input.Revision, input.Enabled, input.Password)
+		if input.Enabled == nil {
+			workspaceError(c, workspace.ErrInvalid)
+			return
+		}
+		user, err := store.UpdateUser(c.GetString("username"), c.Param("username"), input.Revision, *input.Enabled, input.Password)
 		if err != nil {
 			workspaceError(c, err)
 			return
@@ -144,13 +148,17 @@ func registerWorkspace(api *gin.RouterGroup, store *workspace.Store, engines *te
 	group.PUT("/teams/:team", RateLimitMiddleware(), func(c *gin.Context) {
 		var input struct {
 			Name     string `json:"name"`
-			Enabled  bool   `json:"enabled"`
+			Enabled  *bool  `json:"enabled"`
 			Revision uint64 `json:"revision"`
 		}
 		if !workspaceJSON(c, &input) {
 			return
 		}
-		team, err := store.UpdateTeam(c.GetString("username"), c.Param("team"), input.Name, input.Enabled, input.Revision)
+		if input.Enabled == nil {
+			workspaceError(c, workspace.ErrInvalid)
+			return
+		}
+		team, err := store.UpdateTeam(c.GetString("username"), c.Param("team"), input.Name, *input.Enabled, input.Revision)
 		if err != nil {
 			workspaceError(c, err)
 			return
@@ -159,13 +167,17 @@ func registerWorkspace(api *gin.RouterGroup, store *workspace.Store, engines *te
 	})
 	group.PUT("/teams/:team/members/:username", RateLimitMiddleware(), func(c *gin.Context) {
 		var input struct {
-			Role     string `json:"role"`
-			Revision uint64 `json:"revision"`
+			Role     *string `json:"role"`
+			Revision uint64  `json:"revision"`
 		}
 		if !workspaceJSON(c, &input) {
 			return
 		}
-		team, err := store.SetMember(c.GetString("username"), c.Param("team"), c.Param("username"), input.Role, input.Revision)
+		if input.Role == nil {
+			workspaceError(c, workspace.ErrInvalid)
+			return
+		}
+		team, err := store.SetMember(c.GetString("username"), c.Param("team"), c.Param("username"), *input.Role, input.Revision)
 		if err != nil {
 			workspaceError(c, err)
 			return

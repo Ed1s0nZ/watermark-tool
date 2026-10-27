@@ -1,3 +1,5 @@
+import { WorkspaceSelector, useWorkspace } from "./workspaceContext";
+import { TeamsPage } from "./TeamsPage";
 import { useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -39,7 +41,7 @@ import { RecordsPage } from "./RecordsPage";
 import { KeysPage } from "./KeysPage";
 import { ErrorNotice } from "./ErrorNotice";
 import { SidebarNav } from "./SidebarNav";
-import { isPage, parentGroup, type Page } from "./navigation";
+import { isPage, parentGroup, canNavigate, type Page } from "./navigation";
 function currentPage(): Page {
   const page = location.hash.slice(1);
   return isPage(page) ? page : "overview";
@@ -55,12 +57,17 @@ export function Shell({
   onLogout: () => Promise<void>;
 }) {
   const t = useText();
+  const workspace = useWorkspace();
   const wt = useWorkbenchText();
   const jt = useJobText();
   const ft = useFeatureText();
   const contentRef = useRef<HTMLDivElement>(null);
   const { token } = theme.useToken();
-  const [page, setPage] = useState<Page>(currentPage);
+  const [page, setPage] = useState<Page>(() =>
+    canNavigate(currentPage(), workspace.role, workspace.administrator)
+      ? currentPage()
+      : "overview",
+  );
   const [collapsed, setCollapsed] = useState(false);
   const [mobile, setMobile] = useState(false);
   const [openGroups, setOpenGroups] = useState<string[]>(() => {
@@ -71,7 +78,9 @@ export function Shell({
   useEffect(() => {
     const parent = parentGroup(page);
     if (parent) {
-      setOpenGroups(keys => keys.includes(parent) ? keys : [...keys, parent]);
+      setOpenGroups((keys) =>
+        keys.includes(parent) ? keys : [...keys, parent],
+      );
     }
     setPopupGroups([]);
   }, [page, collapsed]);
@@ -105,12 +114,18 @@ export function Shell({
     void loadTypes();
   }, []);
   const navigate = (value: string) => {
-    if (!isPage(value)) return;
+    if (
+      !isPage(value) ||
+      !canNavigate(value, workspace.role, workspace.administrator)
+    )
+      return;
     location.hash = value;
     setPage(value);
     const parent = parentGroup(value);
     if (parent) {
-      setOpenGroups(keys => keys.includes(parent) ? keys : [...keys, parent]);
+      setOpenGroups((keys) =>
+        keys.includes(parent) ? keys : [...keys, parent],
+      );
     }
     setPopupGroups([]);
     setMobile(false);
@@ -118,6 +133,13 @@ export function Shell({
   useEffect(() => {
     contentRef.current?.scrollTo({ top: 0 });
   }, [page]);
+  useEffect(() => {
+    if (
+      !canNavigate(page, workspace.role, workspace.administrator) ||
+      !canNavigate(currentPage(), workspace.role, workspace.administrator)
+    )
+      navigate("overview");
+  }, [page, workspace.role, workspace.administrator]);
   const brand = (
     <a href="#overview" className="brand sidebar-brand">
       <span className="brand-mark">
@@ -159,10 +181,13 @@ export function Shell({
           {!collapsed ? t.workspace : "···"}
         </div>
         <div className="sidebar-navigation">
-          <SidebarNav page={page} collapsed={collapsed}
+          <SidebarNav
+            page={page}
+            collapsed={collapsed}
             openKeys={collapsed ? popupGroups : openGroups}
             onOpenChange={collapsed ? setPopupGroups : setOpenGroups}
-            onNavigate={navigate} />
+            onNavigate={navigate}
+          />
         </div>
         <div className="sidebar-bottom">
           <div className="sidebar-status">
@@ -194,8 +219,13 @@ export function Shell({
         onClose={() => setMobile(false)}
         closeIcon={<span aria-label={t.close}>×</span>}
       >
-        <SidebarNav page={page} mobile openKeys={openGroups}
-          onOpenChange={setOpenGroups} onNavigate={navigate} />
+        <SidebarNav
+          page={page}
+          mobile
+          openKeys={openGroups}
+          onOpenChange={setOpenGroups}
+          onNavigate={navigate}
+        />
       </Drawer>
       <Layout className="platform-main">
         <Layout.Header
@@ -228,6 +258,7 @@ export function Shell({
             </Typography.Text>
           </Space>
           <div className="topbar-actions">
+            <WorkspaceSelector />
             <Preferences {...preferences} />
             <Dropdown
               trigger={["click"]}
@@ -286,7 +317,13 @@ export function Shell({
               />
             )}
             <div hidden={page !== "overview"}>
-              <Dashboard types={types} onNavigate={navigate} />
+              <Dashboard
+                types={types}
+                onNavigate={navigate}
+                readOnly={
+                  workspace.role === "reviewer" && !workspace.administrator
+                }
+              />
             </div>
             <div hidden={page !== "add"}>
               <WatermarkPage kind="add" types={types} />
@@ -303,6 +340,7 @@ export function Shell({
             <div hidden={page !== "keys"}>
               <KeysPage active={active && page === "keys"} />
             </div>
+            {active && page === "teams" && <TeamsPage />}
             {active && page === "trace" && <TraceBatchPage />}
             {active && page === "jobs" && <JobsPage />}
             {active && page === "audit" && <AuditPage />}

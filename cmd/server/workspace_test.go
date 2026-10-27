@@ -199,6 +199,22 @@ func TestWorkspaceHTTPIsolationAndRoles(t *testing.T) {
 	if out := call("PUT", "/api/workspace/teams/"+a.ID+"/members/alice", map[string]any{"revision": a.Revision, "role": "owner"}, ac); out.Code != 403 {
 		t.Fatal("self escalation", out.Code)
 	}
+	a, err = ws.SetMember("admin", a.ID, "alice", workspace.RoleOwner, a.Revision)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if out := call("POST", prefix(a.ID)+"/platform/keys", map[string]any{}, ac); out.Code != 201 {
+		t.Fatal("team owner cannot manage own keys", out.Code, out.Body.String())
+	}
+	if out := call("GET", "/api/workspace/users", nil, ac); out.Code != 403 {
+		t.Fatal("team owner became global admin", out.Code)
+	}
+	if out := call("PUT", "/api/workspace/users/alice", map[string]any{"revision": alice.Revision}, admin); out.Code != 422 {
+		t.Fatal("omitted enabled mutated account", out.Code)
+	}
+	if _, active := ws.CredentialVersion("alice"); !active {
+		t.Fatal("missing field disabled user")
+	}
 	if out := call("POST", "/api/workspace/users", map[string]any{"username": "carol", "password": "carol-password-2026", "role": "admin"}, admin); out.Code != 422 {
 		t.Fatal("unknown fields", out.Code)
 	}

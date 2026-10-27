@@ -718,3 +718,26 @@ a {
     padding-inline: 16px;
   }
 }
+
+.workspace-selector {
+  width: 180px;
+  max-width: 100%;
+}
+.topbar-actions {
+  flex-wrap: wrap;
+  max-width: 100%;
+}
+@media (max-width: 767px) {
+  .topbar-actions {
+    width: 100%;
+    margin-left: 0;
+    gap: 8px;
+  }
+  .workspace-selector {
+    width: 100%;
+    flex: 1 0 100%;
+  }
+  .topbar-actions > .ant-space {
+    margin-right: auto;
+  }
+}

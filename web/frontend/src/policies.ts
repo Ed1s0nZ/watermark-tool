@@ -1,3 +1,4 @@
+import { scopedBrowserKey } from "./api";
 import { Layout, validLayout } from "./artwork";
 import { OutputOptions, validOutput } from "./OutputFields";
 import { defaultStyle, validStyle, Style } from "./visibleWatermark";
@@ -43,7 +44,7 @@ export function validPolicy(v: unknown): v is PolicyValue {
   );
 }
 export function loadPolicies(): Preset[] {
-  const raw = localStorage.getItem(policyKey);
+  const raw = localStorage.getItem(scopedBrowserKey(policyKey));
   if (!raw) return [];
   const v = JSON.parse(raw);
   if (
@@ -100,7 +101,10 @@ export function savePolicies(items: Preset[]) {
     )
   )
     throw Error("storage");
-  localStorage.setItem(policyKey, JSON.stringify({ version: 1, items }));
+  localStorage.setItem(
+    scopedBrowserKey(policyKey),
+    JSON.stringify({ version: 1, items }),
+  );
 }
 export function builtins(labels: string[]): Preset[] {
   return [

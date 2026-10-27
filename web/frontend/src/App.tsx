@@ -6,7 +6,7 @@ import { api, APIError, User, advanceAuthEpoch } from "./api";
 import { en, I18n, zh } from "./i18n";
 import { Language, Mode } from "./Preferences";
 import { Login } from "./Login";
-import { Shell } from "./Shell";
+import { WorkspaceFrame } from "./WorkspaceFrame";
 function saved(key: string) {
   try {
     return localStorage.getItem(key);
@@ -138,7 +138,7 @@ export function App() {
             )}
             {lastUser && (
               <div hidden={!user}>
-                <Shell
+                <WorkspaceFrame
                   key={lastUser.username}
                   active={!!user}
                   user={lastUser}

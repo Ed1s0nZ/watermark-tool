@@ -10,8 +10,10 @@ import { useText } from "./i18n";
 export function Dashboard({
   types,
   onNavigate,
+  readOnly = false,
 }: {
   types: string[];
+  readOnly?: boolean;
   onNavigate: (page: string) => void;
 }) {
   const t = useText();
@@ -37,26 +39,30 @@ export function Dashboard({
             action: t.inspect,
             icon: <ScanOutlined aria-hidden="true" />,
           },
-        ].map((item) => (
-          <Col xs={24} md={12} key={item.page}>
-            <Card className="workspace-action">
-              <div className="workspace-action-heading">
-                <span className={`action-icon ${item.page}`}>{item.icon}</span>
-                <Typography.Title level={4}>{item.title}</Typography.Title>
-              </div>
-              <Typography.Paragraph type="secondary">
-                {item.description}
-              </Typography.Paragraph>
-              <Button
-                type={item.page === "add" ? "primary" : "default"}
-                onClick={() => onNavigate(item.page)}
-                icon={<ArrowRightOutlined aria-hidden="true" />}
-              >
-                {item.action}
-              </Button>
-            </Card>
-          </Col>
-        ))}
+        ]
+          .filter((item) => !readOnly || item.page !== "add")
+          .map((item) => (
+            <Col xs={24} md={12} key={item.page}>
+              <Card className="workspace-action">
+                <div className="workspace-action-heading">
+                  <span className={`action-icon ${item.page}`}>
+                    {item.icon}
+                  </span>
+                  <Typography.Title level={4}>{item.title}</Typography.Title>
+                </div>
+                <Typography.Paragraph type="secondary">
+                  {item.description}
+                </Typography.Paragraph>
+                <Button
+                  type={item.page === "add" ? "primary" : "default"}
+                  onClick={() => onNavigate(item.page)}
+                  icon={<ArrowRightOutlined aria-hidden="true" />}
+                >
+                  {item.action}
+                </Button>
+              </Card>
+            </Col>
+          ))}
       </Row>
       <Card className="workspace-reference" title={t.supported}>
         <Space wrap size={[6, 8]}>

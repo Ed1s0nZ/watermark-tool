@@ -1,5 +1,6 @@
 import { expect, type Page } from "@playwright/test";
 export async function configure(page: Page, advanced = true) {
+  if (/#(jobs|dual)$/.test(page.url())) await expect(page.locator(".form-workspace")).toBeVisible();
   const back = page.locator(".workspace-mobile-back");
   if (await back.isVisible()) await back.click();
   const header = page.locator(".advanced-settings .ant-collapse-header");
