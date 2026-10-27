@@ -383,4 +383,33 @@ test("shared upload: multi-file management, atomic limits, CSV and legacy docume
     document.getByText("source.docx", { exact: true }),
   ).toBeVisible();
   await expect(document.locator(".file-thumbnail .anticon-file")).toBeVisible();
+  await document
+    .locator('input[type="file"]')
+    .setInputFiles({ name: "draft.png", mimeType: "image/png", buffer: raw });
+  const thumbnail = document.getByRole("img", {
+    name: "所选文件: draft.png",
+    exact: true,
+  });
+  await expect(thumbnail).toBeVisible();
+  const draftURL = await thumbnail.getAttribute("src");
+  await page.evaluate(() => (location.hash = "overview"));
+  await expect(
+    page.getByRole("heading", { name: "工作台", exact: true }),
+  ).toBeVisible();
+  await expect
+    .poll(() =>
+      page.evaluate(
+        (url) =>
+          fetch(url!).then(
+            () => false,
+            () => true,
+          ),
+        draftURL,
+      ),
+    )
+    .toBe(true);
+  await page.evaluate(() => (location.hash = "add"));
+  await expect(document.getByText("draft.png", { exact: true })).toBeVisible();
+  await expect(thumbnail).toBeVisible();
+  await expect(thumbnail).not.toHaveAttribute("src", draftURL!);
 });

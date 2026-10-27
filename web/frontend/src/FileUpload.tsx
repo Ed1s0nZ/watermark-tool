@@ -22,18 +22,27 @@ function Thumbnail({ file }: { file: File }) {
   const t = useWorkspaceText();
   const [url, setURL] = useState("");
   const [failed, setFailed] = useState(false);
+  const [visible, setVisible] = useState(false);
+  const element = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const observer = new IntersectionObserver(([entry]) =>
+      setVisible(entry.isIntersecting),
+    );
+    if (element.current) observer.observe(element.current);
+    return () => observer.disconnect();
+  }, []);
   useEffect(() => {
     setFailed(false);
-    if (!/\.(png|jpe?g)$/i.test(file.name)) {
+    if (!visible || !/\.(png|jpe?g)$/i.test(file.name)) {
       setURL("");
       return;
     }
     const next = URL.createObjectURL(file);
     setURL(next);
     return () => URL.revokeObjectURL(next);
-  }, [file]);
+  }, [file, visible]);
   return (
-    <span className="file-thumbnail">
+    <span className="file-thumbnail" ref={element}>
       {url && !failed ? (
         <img
           src={url}

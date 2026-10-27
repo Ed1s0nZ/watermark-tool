@@ -2,7 +2,7 @@
 
 ## 组件与数据流
 
-FileUpload接收受控File[]、accept、maxSize/maxCount/maxTotal、disabled及onChange。以原生隐藏input作为选择器、Ant Design按钮/标签/警告呈现统一拖放区和文件行；原生input的aria-label保持现有测试/无障碍名称。共享校验整组原子拒绝，保留旧输入；扩展名/MIME按accept判断，实际解码仍由既有处理链验证。多文件选择默认替换整组，显式“添加文件”和拖入支持追加，逐项替换/删除；重复字节不同文件名不擅自去重。缩略图仅图片创建objectURL，失败回退文件图标，每项useEffect清理。
+FileUpload接收受控File[]、accept、maxSize/maxCount/maxTotal、disabled及onChange。以原生隐藏input作为选择器、Ant Design按钮/标签/警告呈现统一拖放区和文件行；原生input的aria-label保持现有测试/无障碍名称。共享校验整组原子拒绝，保留旧输入；扩展名/MIME按accept判断，实际解码仍由既有处理链验证。多文件选择默认替换整组，显式“添加文件”和拖入支持追加，逐项替换/删除；重复字节不同文件名不擅自去重。缩略图仅图片创建objectURL，失败回退文件图标，每项useEffect清理，并通过IntersectionObserver在可见时建立、隐藏/移出可视区域时撤销URL；回到保留草稿的页面重新建立，不丢File。
 
 FormWorkspace使用相同配置/预览节点，桌面CSS Grid双列，右侧sticky top0并限制视口高度、内部滚动；宽度≤1100px的窄窗口/平板/手机用带标签的Segmented控制两面板hidden，不卸载节点，底部“预览与生成”与返回按钮可切换。左右数字阶段标题，输入/配置与预览/最终交付区分。mobile切换时滚到工作区顶部，尊重reduced-motion。
 
