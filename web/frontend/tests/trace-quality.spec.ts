@@ -185,7 +185,10 @@ test("policies, streamed mixed tracing, cancellation and quality gating", async 
   expect(html).not.toContain("<script>");
   expect(html).toContain("&lt;script&gt;");
   expect(html).toContain("Content-Security-Policy");
+  await page.setViewportSize({ width: 1280, height: 1000 });
+  await page.getByRole("table").scrollIntoViewIfNeeded();
   await page.screenshot({
+    animations: "disabled",
     path: info.outputPath("trace-batch.png"),
     fullPage: true,
   });
@@ -243,7 +246,12 @@ test("policies, streamed mixed tracing, cancellation and quality gating", async 
   await page.getByRole("button", { name: "生成双水印", exact: true }).click();
   await expect(page.getByText("通过", { exact: true })).toBeVisible();
   await expect(page.getByText(/可见层变化（参考原图）/)).toBeVisible();
+  await page
+    .locator(".ant-card")
+    .filter({ has: page.getByText("质量摘要", { exact: true }) })
+    .scrollIntoViewIfNeeded();
   await page.screenshot({
+    animations: "disabled",
     path: info.outputPath("quality-dual.png"),
     fullPage: true,
   });
@@ -259,14 +267,47 @@ test("policies, streamed mixed tracing, cancellation and quality gating", async 
   await expect(
     page.getByText("Quality summary", { exact: true }),
   ).toBeVisible();
+  await expect(page.locator(".ant-select-dropdown:visible")).toHaveCount(0);
+  await page
+    .locator(".ant-card")
+    .filter({ has: page.getByText("Quality summary", { exact: true }) })
+    .scrollIntoViewIfNeeded();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth,
     ),
   ).toBe(true);
   await page.screenshot({
+    animations: "disabled",
     path: info.outputPath("quality-mobile-dark.png"),
     fullPage: true,
+  });
+  await page
+    .getByRole("button", { name: "Open navigation", exact: true })
+    .click();
+  await page
+    .getByRole("menuitem", { name: "Batch tracing", exact: true })
+    .click();
+  await page.getByLabel("Images to trace", { exact: true }).setInputFiles([
+    { name: "raw.png", mimeType: "image/png", buffer: original },
+    { name: "marked.png", mimeType: "image/png", buffer: marked },
+  ]);
+  await page
+    .getByRole("button", { name: "Start batch tracing", exact: true })
+    .click();
+  await expect(
+    page.getByText("All items executed", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("table").scrollIntoViewIfNeeded();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await page.screenshot({
+    path: info.outputPath("trace-mobile-dark.png"),
+    fullPage: true,
+    animations: "disabled",
   });
   expect(errors).toEqual([]);
 });
