@@ -190,6 +190,8 @@ func main() {
 	api := r.Group("/api", auth.SameOrigin(), sessions.Require(), auditMiddleware(managed))
 	registerJobs(api, managed, tasks, tempDir)
 	registerAudit(api, managed, tasks)
+	registerBatchTrace(api, managed, tempDir)
+	registerWorkbench(api, managed, tempDir)
 	api.Use(func(c *gin.Context) {
 		if c.Request.Method == http.MethodPost {
 			c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, service.MaxFileSize+(1<<20))
@@ -203,7 +205,6 @@ func main() {
 	})
 
 	registerPlatform(api, managed, tempDir)
-	registerWorkbench(api, managed, tempDir)
 	{
 		// 添加水印API
 		api.POST("/add-watermark", RateLimitMiddleware(), func(c *gin.Context) {

@@ -12,6 +12,7 @@ import (
 	"watermark-tool/internal/blind"
 	"watermark-tool/internal/delivery"
 	"watermark-tool/internal/distribution"
+	"watermark-tool/internal/quality"
 )
 
 func openPlatform() (*distribution.Store, error) {
@@ -35,6 +36,10 @@ func openPlatform() (*distribution.Store, error) {
 func platformError(c *gin.Context, err error) {
 	status, code := 500, "requestError"
 	switch {
+	case errors.Is(err, quality.ErrPolicy):
+		status, code = 422, "quality_policy"
+	case errors.Is(err, quality.ErrThreshold):
+		status, code = 422, "quality_failed"
 	case errors.Is(err, distribution.ErrTemplate):
 		status, code = 422, "job_template"
 	case errors.Is(err, distribution.ErrJobState):

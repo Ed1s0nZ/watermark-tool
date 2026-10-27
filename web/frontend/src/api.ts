@@ -3,6 +3,7 @@ export class APIError extends Error {
     public status: number,
     public code: string,
     public detail = "",
+    public data?: unknown,
   ) {
     super(code);
   }
@@ -44,6 +45,7 @@ export async function api(path: string, init?: RequestInit): Promise<Response> {
             ? "tooLarge"
             : "requestError"),
       data.error || "",
+      data,
     );
   }
   return response;

@@ -168,6 +168,14 @@ test("two images × three recipients: dual-watermark delivery, trace and audit",
     await page.request.get("/api/jobs/" + created.id)
   ).json();
   expect(current.generated).toBe(true);
+  expect(current.quality_policy).toEqual({});
+  for (const copy of current.copies) {
+    expect(copy.quality.verified).toBe(true);
+    expect(copy.quality.accepted).toBe(true);
+    expect(copy.quality.embedding.status).toBe("finite");
+    expect(copy.quality.visible.status).toBe("finite");
+    expect(copy.quality.width).toBe(512);
+  }
   expect(
     current.sources.map((s: { source_sha256: string }) => s.source_sha256),
   ).toEqual([

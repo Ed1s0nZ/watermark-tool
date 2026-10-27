@@ -1,16 +1,20 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"github.com/gin-gonic/gin"
 	"image"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"time"
 	"watermark-tool/internal/blind"
 	"watermark-tool/internal/distribution"
+	"watermark-tool/internal/quality"
 	"watermark-tool/internal/workbench"
 )
 
@@ -52,7 +56,19 @@ func verifyWorkbench(img image.Image, store *distribution.Store, keyID string) (
 	return r, "", err
 }
 func registerWorkbench(api *gin.RouterGroup, store *distribution.Store, tempDir string) {
-	group := api.Group("/workbench", RateLimitMiddleware())
+	group := api.Group("/workbench", RateLimitMiddleware(), func(c *gin.Context) {
+		limit := int64(51 << 20)
+		if c.Request.URL.Path == "/api/workbench/dual" {
+			limit = 101 << 20
+		}
+		c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, limit)
+		defer func() {
+			if c.Request.MultipartForm != nil {
+				_ = c.Request.MultipartForm.RemoveAll()
+			}
+		}()
+		c.Next()
+	})
 	group.POST("/lab", func(c *gin.Context) {
 		withPlatformImage(c, tempDir, func(input string) {
 			img, err := blind.Load(input)
@@ -105,6 +121,32 @@ func registerWorkbench(api *gin.RouterGroup, store *distribution.Store, tempDir 
 				platformError(c, err)
 				return
 			}
+			var policy quality.Policy
+			if raw := c.PostForm("quality_policy"); raw != "" {
+				d := json.NewDecoder(bytes.NewBufferString(raw))
+				d.DisallowUnknownFields()
+				if len(raw) > 256 || d.Decode(&policy) != nil || d.Decode(new(any)) != io.EOF || !policy.Valid() {
+					platformError(c, quality.ErrPolicy)
+					return
+				}
+			}
+			var original image.Image
+			if originalFile, e := c.FormFile("original"); e == nil {
+				if originalFile.Size > 50<<20 {
+					platformError(c, blind.ErrImage)
+					return
+				}
+				path := filepath.Join(filepath.Dir(input), "original")
+				if e = c.SaveUploadedFile(originalFile, path); e != nil {
+					platformError(c, e)
+					return
+				}
+				original, e = blind.Load(path)
+				if e != nil {
+					platformError(c, e)
+					return
+				}
+			}
 			now := time.Now()
 			text := c.PostForm("watermark")
 			out, err := blind.Embed(img, text, key, now)
@@ -124,6 +166,14 @@ func registerWorkbench(api *gin.RouterGroup, store *distribution.Store, tempDir 
 			if c.Request.Context().Err() != nil {
 				return
 			}
+			summary := quality.Compare(img, out, original, policy)
+			if !summary.Accepted {
+				c.Set("audit_code", "quality_failed")
+				c.JSON(422, gin.H{"code": "quality_failed", "quality": summary})
+				return
+			}
+			header, _ := json.Marshal(summary)
+			c.Header("X-Watermark-Quality", string(header))
 			output := filepath.Join(filepath.Dir(input), "dual.png")
 			if err = blind.SaveNew(output, out); err != nil {
 				platformError(c, err)
@@ -135,45 +185,11 @@ func registerWorkbench(api *gin.RouterGroup, store *distribution.Store, tempDir 
 	})
 	group.POST("/verify", func(c *gin.Context) {
 		withPlatformImage(c, tempDir, func(input string) {
-			started := time.Now()
-			img, err := blind.Load(input)
+			report, err := buildVerification(input, store, c.PostForm("key_id"))
 			if err != nil {
 				platformError(c, err)
 				return
 			}
-			data, err := os.ReadFile(input)
-			if err != nil {
-				platformError(c, err)
-				return
-			}
-			report := verificationReport{Kind: "verification", Schema: 1, Source: workbench.Digest(data), Width: img.Bounds().Dx(), Height: img.Bounds().Dy(), TestedAt: started.UTC().Format(time.RFC3339), Algorithm: blind.Algorithm}
-			result, keyID, err := verifyWorkbench(img, store, c.PostForm("key_id"))
-			switch {
-			case err == nil:
-				report.Status = "unregistered"
-				report.Result = &result
-				report.KeyID = keyID
-				if store != nil {
-					report.Record, err = store.Lookup(result, keyID)
-					if err != nil {
-						platformError(c, err)
-						return
-					}
-					if report.Record != nil {
-						report.Status = "registered"
-					}
-				}
-			case errors.Is(err, blind.ErrNotFound):
-				report.Status = "not_found"
-				report.Error = workbench.Code(err)
-			case errors.Is(err, blind.ErrInvalid), errors.Is(err, blind.ErrCapacity):
-				report.Status = "invalid"
-				report.Error = workbench.Code(err)
-			default:
-				platformError(c, err)
-				return
-			}
-			report.Milliseconds = time.Since(started).Milliseconds()
 			c.JSON(200, report)
 		})
 	})

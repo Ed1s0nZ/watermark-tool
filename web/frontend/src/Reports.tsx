@@ -33,15 +33,18 @@ export function reportHTML(report: unknown, title: string, hint: string) {
   const value = (v: unknown) =>
     escapeHTML(typeof v === "object" ? JSON.stringify(v) : String(v ?? "—"));
   const metadata = Object.entries(data)
-    .filter(([key]) => !["cases", "result", "record"].includes(key))
+    .filter(([key]) => !["cases", "result", "record", "items"].includes(key))
     .map(
       ([key, v]) => `<tr><th>${escapeHTML(key)}</th><td>${value(v)}</td></tr>`,
     )
     .join("");
+  const batch = Array.isArray(data.items)
+    ? `<h2>Batch results / 批量结果</h2><table><tr><th>index</th><th>name</th><th>status</th><th>details</th></tr>${data.items.map((i: Record<string, unknown>) => `<tr><td>${value(i.index)}</td><td>${value(i.name)}</td><td>${value(i.status)}</td><td>${value(i.report)}</td></tr>`).join("")}</table>`
+    : "";
   const cases = Array.isArray(data.cases)
     ? `<h2>Experiments / 实验结果</h2><table><thead><tr><th>case_id</th><th>width × height</th><th>recovered</th><th>error_code</th><th>control_passed</th><th>PSNR dB</th><th>elapsed_ms</th></tr></thead><tbody>${data.cases.map((row: Record<string, unknown>) => `<tr><td>${value(row.case_id)}</td><td>${value(row.width)} × ${value(row.height)}</td><td>${value(row.recovered)}</td><td>${value(row.error_code)}</td><td>${value(row.control_passed)}</td><td>${value(row.psnr_db)}</td><td>${value(row.elapsed_ms)}</td></tr>`).join("")}</tbody></table>`
     : "";
-  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><title>${escapeHTML(title)}</title><style>body{font:15px system-ui;max-width:1000px;margin:40px auto;padding:20px;color:#182238}h1{border-bottom:3px solid #3864e8;padding-bottom:16px}pre,td{overflow-wrap:anywhere}pre{white-space:pre-wrap;background:#f5f7fa;padding:20px}p{line-height:1.6}table{width:100%;border-collapse:collapse;margin:24px 0;table-layout:fixed}th,td{border:1px solid #dde3ed;padding:10px;text-align:left;vertical-align:top}th{background:#f5f7fa}h2{font-size:18px;margin-top:28px}@media print{body{margin:0;padding:0}pre{background:white}tr{break-inside:avoid}h2{break-after:avoid}}</style></head><body><h1>${escapeHTML(title)}</h1><p>${escapeHTML(hint)}</p><table>${metadata}</table>${cases}<h2>Full result / 完整结果</h2><pre>${escapeHTML(JSON.stringify(report, null, 2))}</pre></body></html>`;
+  return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'"><title>${escapeHTML(title)}</title><style>body{font:15px system-ui;max-width:1000px;margin:40px auto;padding:20px;color:#182238}h1{border-bottom:3px solid #3864e8;padding-bottom:16px}pre,td{overflow-wrap:anywhere}pre{white-space:pre-wrap;background:#f5f7fa;padding:20px}p{line-height:1.6}table{width:100%;border-collapse:collapse;margin:24px 0;table-layout:fixed}th,td{border:1px solid #dde3ed;padding:10px;text-align:left;vertical-align:top}th{background:#f5f7fa}h2{font-size:18px;margin-top:28px}@media print{body{margin:0;padding:0}pre{background:white}tr{break-inside:avoid}h2{break-after:avoid}}</style></head><body><h1>${escapeHTML(title)}</h1><p>${escapeHTML(hint)}</p><table>${metadata}</table>${cases}${batch}<h2>Full result / 完整结果</h2><pre>${escapeHTML(JSON.stringify(report, null, 2))}</pre></body></html>`;
 }
 
 function download(data: string, type: string, name: string) {

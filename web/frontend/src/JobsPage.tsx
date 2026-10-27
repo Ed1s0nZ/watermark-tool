@@ -10,6 +10,8 @@ import {
   Table,
   Typography,
 } from "antd";
+import { PolicyControls } from "./PolicyControls";
+import { QualityFields, QualityPolicy } from "./quality";
 import { api, APIError } from "./api";
 import { ErrorNotice } from "./ErrorNotice";
 import { useJob } from "./useJob";
@@ -48,6 +50,7 @@ export function JobsPage() {
   const [csv, setCSV] = useState("recipient_id,name\n001,Alice\n002,张三");
   const [mode, setMode] = useState<"blind" | "dual">("blind");
   const [text, setText] = useState("内部资料 · {name} · {recipient_id}");
+  const [quality, setQuality] = useState<QualityPolicy>({});
   const [style, setStyle] = useState<Style>(defaultStyle);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [storageError, setStorageError] = useState(false);
@@ -151,6 +154,7 @@ export function JobsPage() {
   function restore(job: DeliveryJob) {
     change();
     setMode(job.mode);
+    setQuality(job.quality_policy ? { ...job.quality_policy } : {});
     setText(job.template_text ?? "{name}");
     setStyle(job.style ? { ...job.style } : defaultStyle);
     const recipients = Array.from(
@@ -201,8 +205,27 @@ export function JobsPage() {
         <Typography.Text type="secondary">{t.hint}</Typography.Text>
       </div>
       <Alert message={t.limits} />
+      <PolicyControls
+        value={{ mode, template: text, style, quality }}
+        disabled={busy}
+        onApply={(p) => {
+          change();
+          setMode(p.mode);
+          setText(p.template);
+          setStyle(p.style);
+          setQuality(p.quality);
+        }}
+      />
       <Card>
         <Form layout="vertical">
+          <QualityFields
+            value={quality}
+            disabled={busy}
+            onChange={(v) => {
+              change();
+              setQuality(v);
+            }}
+          />
           <Form.Item label={t.files}>
             <input
               aria-label={t.files}
@@ -335,6 +358,7 @@ export function JobsPage() {
                       if (!signal.aborted)
                         setProgress(`${t.rendering} ${done}/${total}`);
                     },
+                    quality,
                   ).catch((e) => {
                     if (e instanceof APIError) throw e;
                     if (e instanceof Error && e.message === "font")

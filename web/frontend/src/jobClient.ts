@@ -1,3 +1,4 @@
+import { Quality, QualityPolicy } from "./quality";
 import { api, APIError } from "./api";
 import { dimensions, renderVisible, Style } from "./visibleWatermark";
 export interface Recipient {
@@ -14,12 +15,14 @@ export interface JobSource {
   uploaded: boolean;
 }
 export interface JobCopy extends Recipient {
+  quality?: Quality;
   id: string;
   source_id: string;
   rendered_sha256?: string;
   input_uploaded: boolean;
 }
 export interface DeliveryJob {
+  quality_policy?: QualityPolicy;
   id: string;
   upload_token: string;
   operator: string;
@@ -49,6 +52,7 @@ interface SourceInfo {
   height: number;
 }
 export interface Plan {
+  quality: QualityPolicy;
   sources: SourceInfo[];
   recipients: Recipient[];
   csv: string;
@@ -129,6 +133,7 @@ export async function prepare(
   style: Style,
   signal: AbortSignal,
   progress: (done: number, total: number) => void,
+  quality: QualityPolicy = {},
 ): Promise<Plan> {
   if (
     !files.length ||
@@ -145,7 +150,13 @@ export async function prepare(
     throw new APIError(422, "job_invalid");
   const result = await post<{ recipients: Recipient[] }>(
     "/jobs/preview-plan",
-    { recipients_csv: csv, mode, template_text: template, style },
+    {
+      recipients_csv: csv,
+      mode,
+      template_text: template,
+      style,
+      quality_policy: quality,
+    },
     signal,
   );
   alive(signal);
@@ -170,6 +181,7 @@ export async function prepare(
       progress(++done, total);
     }
   return {
+    quality: { ...quality },
     sources,
     recipients: result.recipients,
     csv,
@@ -194,6 +206,7 @@ export async function createJob(
         mode: plan.mode,
         template_text: plan.template,
         style: plan.style,
+        quality_policy: plan.quality,
       }),
       signal,
     })
@@ -203,6 +216,7 @@ export function matchesPlan(plan: Plan, job: DeliveryJob) {
   const recipients = new Map(job.copies.map((r) => [r.recipient_id, r.name]));
   return (
     plan.mode === job.mode &&
+    plan.quality.minimum_psnr_db === job.quality_policy?.minimum_psnr_db &&
     plan.sources.length === job.sources.length &&
     job.sources.every((s) =>
       plan.sources.some((p) => p.source_sha256 === s.source_sha256),

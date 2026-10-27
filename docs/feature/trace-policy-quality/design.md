@@ -37,7 +37,7 @@ Metric为RGB MSE的10log10(255²/MSE)，相同像素是infinite，不同/空尺�
 
 新增POST /api/workbench/trace-batch：multipart files多值，最多20，每份50MiB、总128MiB，请求129MiB硬界，在公共单图51MiB中间件之前注册。先取得共享blindSlots，再解析暂存，不增加并行处理；请求结束移除multipart临时文件。先完成认证/配置/数量体积校验，再响应application/x-ndjson：begin含随机batch_id与total，item含1起始index、脱敏不入审计的显示name、duplicate_of?和verificationReport或error，end含completed/partial/failed。每条flush展示真实进度。系统错误以fatal帧停止，不记为not_found；取消关闭连接，当前编解码/提取结束后停止，不启动后续项。
 
-浏览器状态idle→uploading→running→completed/partial/failed/cancelled。用同一AbortController防重入；已收item保持不变，未收项显式not_executed，网络/认证是error。离页/重新选文件会清理本次结果，beforeunload提示未保存；不保存图片/报告到服务器。报告含batch_id、观察时间、选定总数、完成数、终态及全部输入项，不把部分批次当全部成功。
+浏览器状态idle→uploading→running→completed/partial/failed/cancelled。用同一AbortController防重入；已收item保持不变，未收项显式not_confirmed（未收到结果，不能因没有响应而断言服务器从未处理），网络/认证是error。离页/重新选文件会清理本次结果，beforeunload提示未保存；不保存图片/报告到服务器。报告含batch_id、观察时间、选定总数、完成数、终态及全部输入项，不把部分批次当全部成功。
 
 现有POST /api/workbench/dual保持PNG响应；新增可选quality_policy表单JSON与original原始文件，以X-Watermark-Quality返回安全有界JSON摘要。门槛失败422 JSON含code与quality。workbench注册改为自带按路由上限的body保护（dual101MiB、其他51MiB），不叠加公共单图上限；原始图与渲染图每份仍50MiB。旧调用不传original则visible未记录，原PNG协议兼容。
 

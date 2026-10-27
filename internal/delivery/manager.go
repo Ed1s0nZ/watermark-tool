@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 	"watermark-tool/internal/distribution"
+	"watermark-tool/internal/quality"
 )
 
 var ErrExpired = errors.New("archive_expired")
@@ -161,6 +162,8 @@ func (m *Manager) dispatch(id string) {
 }
 func errorCode(err error) string {
 	switch {
+	case errors.Is(err, quality.ErrThreshold):
+		return "quality_failed"
 	case errors.Is(err, distribution.ErrLimit):
 		return "platform_limit"
 	case errors.Is(err, distribution.ErrConflict):

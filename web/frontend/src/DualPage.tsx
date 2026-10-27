@@ -10,7 +10,14 @@ import {
   Typography,
 } from "antd";
 import { VisibleStyleFields } from "./VisibleStyleFields";
-import { api } from "./api";
+import { PolicyControls } from "./PolicyControls";
+import {
+  Quality,
+  QualityFields,
+  QualityPolicy,
+  QualitySummary,
+} from "./quality";
+import { api, APIError } from "./api";
 import { ErrorNotice } from "./ErrorNotice";
 import { useJob } from "./useJob";
 import { useWorkbenchText } from "./workbenchText";
@@ -28,6 +35,7 @@ export function DualPage({ active }: { active: boolean }) {
   const [file, setFile] = useState<File>();
   const [text, setText] = useState("");
   const [payload, setPayload] = useState("");
+  const [quality, setQuality] = useState<QualityPolicy>({});
   const [style, setStyle] = useState<Style>(defaultStyle);
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selected, setSelected] = useState("");
@@ -35,7 +43,7 @@ export function DualPage({ active }: { active: boolean }) {
   const [storageError, setStorageError] = useState(false);
   const [message, setMessage] = useState("");
   const preview = useJob<Blob>();
-  const output = useJob<Blob>();
+  const output = useJob<{ blob: Blob; quality: Quality }>();
   const [previewURL, setPreviewURL] = useState("");
   const [outputURL, setOutputURL] = useState("");
   const imageInput = useRef<HTMLInputElement>(null);
@@ -60,7 +68,7 @@ export function DualPage({ active }: { active: boolean }) {
       setOutputURL("");
       return;
     }
-    const url = URL.createObjectURL(output.value);
+    const url = URL.createObjectURL(output.value.blob);
     setOutputURL(url);
     return () => URL.revokeObjectURL(url);
   }, [output.value]);
@@ -98,8 +106,25 @@ export function DualPage({ active }: { active: boolean }) {
         <Typography.Title level={2}>{t.dual}</Typography.Title>
         <Typography.Text type="secondary">{t.dualHint}</Typography.Text>
       </div>
+      <PolicyControls
+        value={{ mode: "dual", template: "{name}", style, quality }}
+        disabled={busy}
+        onApply={(p) => {
+          reset();
+          setStyle(p.style);
+          setQuality(p.quality);
+        }}
+      />
       <Card>
         <Form layout="vertical">
+          <QualityFields
+            value={quality}
+            disabled={busy}
+            onChange={(v) => {
+              reset();
+              setQuality(v);
+            }}
+          />
           <Form.Item label={t.dualFile}>
             <input
               ref={imageInput}
@@ -243,9 +268,19 @@ export function DualPage({ active }: { active: boolean }) {
                 const body = new FormData();
                 body.append("file", preview.value!, "visible.png");
                 body.append("watermark", payload);
-                return (
-                  await api("/workbench/dual", { method: "POST", body, signal })
-                ).blob();
+                body.append("original", file!);
+                body.append("quality_policy", JSON.stringify(quality));
+                const response = await api("/workbench/dual", {
+                  method: "POST",
+                  body,
+                  signal,
+                });
+                return {
+                  blob: await response.blob(),
+                  quality: JSON.parse(
+                    response.headers.get("X-Watermark-Quality") || "null",
+                  ),
+                };
               })
             }
           >
@@ -276,6 +311,12 @@ export function DualPage({ active }: { active: boolean }) {
           <Alert style={{ marginTop: 16 }} type="error" message={message} />
         )}
         <ErrorNotice error={output.error} />
+        {output.error instanceof APIError &&
+          output.error.code === "quality_failed" && (
+            <QualitySummary
+              value={(output.error.data as { quality?: Quality })?.quality}
+            />
+          )}
         {(preview.cancelled || output.cancelled) && (
           <Alert message={t.cancelled} />
         )}
@@ -298,6 +339,7 @@ export function DualPage({ active }: { active: boolean }) {
           />
         </Card>
       )}
+      {output.value && <QualitySummary value={output.value.quality} />}
       {outputURL && (
         <Card>
           <Space direction="vertical">

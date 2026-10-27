@@ -8,6 +8,9 @@ import {
   Tag,
   Typography,
 } from "antd";
+import { QualitySummary } from "./quality";
+import { Collapse } from "antd";
+import { useFeatureText } from "./traceText";
 import { DeliveryJob } from "./jobClient";
 import { taskLabel, useJobText } from "./jobText";
 export function JobDetails({
@@ -28,6 +31,7 @@ export function JobDetails({
   retryReady: boolean;
 }) {
   const t = useJobText();
+  const ft = useFeatureText();
   const running = ["preparing", "queued", "processing", "cancelling"].includes(
     job.status,
   );
@@ -100,6 +104,16 @@ export function JobDetails({
             </Typography.Text>
           ))}
         </Space>
+        <Typography.Text>
+          {ft.minimum}: {job.quality_policy?.minimum_psnr_db ?? ft.qualityHint}
+        </Typography.Text>
+        <Collapse
+          items={job.copies.map((c) => ({
+            key: c.id,
+            label: `${c.name} · ${c.id}`,
+            children: <QualitySummary value={c.quality} />,
+          }))}
+        />
         {running && <Alert message={t.working} />}
         <Space wrap>
           {running && (

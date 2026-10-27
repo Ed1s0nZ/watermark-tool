@@ -29,6 +29,9 @@ func (s *Store) validateJobs() error {
 		default:
 			return ErrStore
 		}
+		if j.QualityPolicy != nil && !j.QualityPolicy.Valid() {
+			return ErrStore
+		}
 		if j.Mode != "blind" && j.Mode != "dual" || j.Mode == "dual" && !ValidStyle(j.Style) {
 			return ErrStore
 		}
@@ -53,6 +56,12 @@ func (s *Store) validateJobs() error {
 		matrix := map[string]bool{}
 		recipients := map[string]string{}
 		for _, c := range j.Copies {
+			if c.Quality != nil && (!c.Quality.Valid() || j.QualityPolicy != nil && c.Quality.Accepted != j.QualityPolicy.Accept(c.Quality.Embedding)) {
+				return ErrStore
+			}
+			if j.Generated && j.QualityPolicy != nil && (c.Quality == nil || !c.Quality.Accepted) {
+				return ErrStore
+			}
 			pair := c.SourceID + "/" + c.Recipient.ID
 			if len(c.ID) != 32 || !auditID.MatchString(c.ID) || copies[c.ID] || !sourceIDs[c.SourceID] || matrix[pair] || c.Recipient.ID == "" || len(c.Recipient.ID) > 64 || !utf8.ValidString(c.Recipient.ID) || c.Name == "" || len(c.Name) > 128 || !utf8.ValidString(c.Name) || c.RenderedSHA256 != "" && !ValidDigest(c.RenderedSHA256) || c.InputBytes < 0 || c.InputBytes > 50<<20 || c.Uploaded && (j.Mode != "dual" || c.RenderedSHA256 == "" || c.InputBytes == 0) {
 				return ErrStore

@@ -142,6 +142,9 @@ func (s *Store) QueueJob(id, actor string, retry bool) (Job, error) {
 	if pending >= MaxPendingJobs {
 		return Job{}, ErrBusy
 	}
+	for n := range j.Copies {
+		j.Copies[n].Quality = nil
+	}
 	j.Status = "queued"
 	j.Phase = "queued"
 	j.Done = 0
@@ -262,6 +265,13 @@ func (s *Store) FinishJob(id, status, code, archiveHash string, archiveBytes int
 	if status == "completed" {
 		if j.Done != j.Total || !ValidDigest(archiveHash) || archiveBytes <= 0 || archiveBytes > MaxArchiveBytes {
 			return Job{}, ErrJobState
+		}
+		if j.QualityPolicy != nil {
+			for _, c := range j.Copies {
+				if c.Quality == nil || !c.Quality.Accepted {
+					return Job{}, ErrJobState
+				}
+			}
 		}
 		j.Generated = true
 		j.ArchiveSHA256 = archiveHash

@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"context"
 	"encoding/csv"
+	"encoding/json"
 	"fmt"
 	"image"
 	"image/png"
@@ -12,6 +13,7 @@ import (
 	"path/filepath"
 	"watermark-tool/internal/blind"
 	"watermark-tool/internal/distribution"
+	"watermark-tool/internal/quality"
 )
 
 type limitedWriter struct {
@@ -48,7 +50,7 @@ func (m *Manager) archive(ctx context.Context, j distribution.Job, key []byte) (
 	}()
 	z := zip.NewWriter(&limitedWriter{f, m.archiveLimit})
 	recipients := map[string]int{}
-	manifest := [][]string{{"filename", "source_id", "source_name", "source_sha256", "recipient_id", "name", "watermark_id", "key_id", "rendered_sha256"}}
+	manifest := [][]string{{"filename", "source_id", "source_name", "source_sha256", "recipient_id", "name", "watermark_id", "key_id", "rendered_sha256", "quality_json"}}
 	var original image.Image
 	lastSource := ""
 	for n, c := range j.Copies {
@@ -86,6 +88,25 @@ func (m *Manager) archive(ctx context.Context, j distribution.Job, key []byte) (
 		if verified.Watermark != c.ID || verified.Timestamp != j.CreatedAt.Format("2006-01-02T15:04:05Z07:00") {
 			return "", 0, blind.ErrInvalid
 		}
+		var rawSource image.Image
+		if j.Mode == "dual" {
+			rawSource, err = blind.Load(m.inputPath(j.ID, c.SourceID, ""))
+			if err != nil {
+				return "", 0, err
+			}
+		}
+		policy := quality.Policy{}
+		if j.QualityPolicy != nil {
+			policy = *j.QualityPolicy
+		}
+		summary := quality.Compare(original, marked, rawSource, policy)
+		if err = m.store.ObserveJobQuality(j.ID, c.ID, summary); err != nil {
+			return "", 0, err
+		}
+		if !summary.Accepted {
+			return "", 0, quality.ErrThreshold
+		}
+		qualityJSON, _ := json.Marshal(summary)
 		if err = ctx.Err(); err != nil {
 			return "", 0, err
 		}
@@ -102,7 +123,7 @@ func (m *Manager) archive(ctx context.Context, j distribution.Job, key []byte) (
 		if e = png.Encode(entry, marked); e != nil {
 			return "", 0, e
 		}
-		manifest = append(manifest, []string{filename, src.ID, cell(src.Name), src.SHA256, cell(c.Recipient.ID), cell(c.Name), c.ID, j.KeyID, c.RenderedSHA256})
+		manifest = append(manifest, []string{filename, src.ID, cell(src.Name), src.SHA256, cell(c.Recipient.ID), cell(c.Name), c.ID, j.KeyID, c.RenderedSHA256, string(qualityJSON)})
 		if err = m.store.JobProgress(j.ID, n+1, "generating"); err != nil {
 			return "", 0, err
 		}

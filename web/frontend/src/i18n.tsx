@@ -1,5 +1,10 @@
 import { createContext, useContext } from "react";
 export const zh = {
+  quality_failed:
+    "隐形嵌入PSNR低于启用的门槛，未交付成品；请查看质量摘要，调整策略后创建新任务。",
+  quality_policy: "质量策略无效，最低PSNR须为20～60dB。",
+  trace_limit: "批量溯源最多20张，每张50MiB，总量128MiB。",
+  trace_service_error: "验证服务异常，本批已停止；未执行项目不是未检出。",
   job_template:
     "请检查可见模板、样式和替换后的文字：仅支持{name}/{recipient_id}，每份最多80字符且单行。",
   job_font:
@@ -210,6 +215,12 @@ export const zh = {
 };
 export type Dictionary = Record<keyof typeof zh, string>;
 export const en: Dictionary = {
+  quality_failed:
+    "Embedding PSNR is below the enabled threshold; output withheld. Review quality and create a new task with adjusted policy.",
+  quality_policy: "Invalid quality policy. Minimum PSNR must be 20–60dB.",
+  trace_limit: "Batch tracing: up to 20 files, 50MiB each, 128MiB total.",
+  trace_service_error:
+    "Verification service failed; batch stopped. Unexecuted items are not negative detections.",
   job_template:
     "Check the visible template, style and resolved text: only {name}/{recipient_id}, up to 80 characters on one line per copy.",
   job_font:

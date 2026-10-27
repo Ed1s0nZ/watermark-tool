@@ -9,6 +9,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 	"watermark-tool/internal/blind"
+	"watermark-tool/internal/quality"
 )
 
 var digestPattern = regexp.MustCompile(`^[0-9a-f]{64}$`)
@@ -61,7 +62,17 @@ func (s *Store) jobsSnapshot() []Job {
 func pendingJob(status string) bool {
 	return status == "preparing" || status == "queued" || status == "processing" || status == "cancelling"
 }
-func (s *Store) NewJob(request, actor string, sources []JobSource, recipients []Recipient, mode, text string, style map[string]any) (Job, error) {
+func (s *Store) NewJob(request, actor string, sources []JobSource, recipients []Recipient, mode, text string, style map[string]any, policies ...quality.Policy) (Job, error) {
+	var policy *quality.Policy
+	if len(policies) > 1 {
+		return Job{}, quality.ErrPolicy
+	}
+	if len(policies) == 1 {
+		if !policies[0].Valid() {
+			return Job{}, quality.ErrPolicy
+		}
+		policy = quality.Clone(&policies[0])
+	}
 	if len(request) < 16 || len(request) > 128 || actor == "" || len(actor) > 256 || !utf8.ValidString(actor) || len(sources) < 1 || len(sources) > MaxSources || len(recipients) < 1 || len(recipients) > MaxRecipients || (mode != "blind" && mode != "dual") {
 		return Job{}, ErrRecipients
 	}
@@ -99,7 +110,8 @@ func (s *Store) NewJob(request, actor string, sources []JobSource, recipients []
 		Recipients []Recipient
 		Mode, Text string
 		Style      map[string]any
-	}{actor, clean, recipients, mode, text, style})
+		Quality    *quality.Policy `json:",omitempty"`
+	}{actor, clean, recipients, mode, text, style, policy})
 	if err != nil {
 		return Job{}, ErrRecipients
 	}
@@ -143,7 +155,7 @@ func (s *Store) NewJob(request, actor string, sources []JobSource, recipients []
 		return Job{}, err
 	}
 	now := time.Now().UTC().Truncate(time.Second)
-	job := Job{ID: id, Operator: actor, LastActor: actor, CreatedAt: now, UpdatedAt: now, KeyID: keyID, Algorithm: blind.Algorithm, Mode: mode, TemplateText: text, Style: style, Status: "preparing", Phase: "upload", Sources: clean, RequestHash: rh, Fingerprint: fp, Total: len(clean) * len(recipients)}
+	job := Job{QualityPolicy: policy, ID: id, Operator: actor, LastActor: actor, CreatedAt: now, UpdatedAt: now, KeyID: keyID, Algorithm: blind.Algorithm, Mode: mode, TemplateText: text, Style: style, Status: "preparing", Phase: "upload", Sources: clean, RequestHash: rh, Fingerprint: fp, Total: len(clean) * len(recipients)}
 	for i := range job.Sources {
 		sid, e := randomID(16)
 		if e != nil {

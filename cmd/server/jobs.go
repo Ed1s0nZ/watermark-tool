@@ -9,6 +9,7 @@ import (
 	"time"
 	"watermark-tool/internal/delivery"
 	"watermark-tool/internal/distribution"
+	"watermark-tool/internal/quality"
 	"watermark-tool/internal/service"
 )
 
@@ -37,12 +38,17 @@ func registerJobs(api *gin.RouterGroup, store *distribution.Store, manager *deli
 	})
 	group.POST("/preview-plan", func(c *gin.Context) {
 		var request struct {
-			CSV   string         `json:"recipients_csv"`
-			Mode  string         `json:"mode"`
-			Text  string         `json:"template_text"`
-			Style map[string]any `json:"style"`
+			Quality *quality.Policy `json:"quality_policy"`
+			CSV     string          `json:"recipients_csv"`
+			Mode    string          `json:"mode"`
+			Text    string          `json:"template_text"`
+			Style   map[string]any  `json:"style"`
 		}
 		if !boundedJSON(c, &request, 32<<10) {
+			return
+		}
+		if request.Quality != nil && !request.Quality.Valid() {
+			platformError(c, quality.ErrPolicy)
 			return
 		}
 		recipients, err := distribution.ParseRecipients(request.CSV)
@@ -75,6 +81,7 @@ func registerJobs(api *gin.RouterGroup, store *distribution.Store, manager *deli
 			return
 		}
 		var request struct {
+			Quality *quality.Policy          `json:"quality_policy"`
 			Sources []distribution.JobSource `json:"sources"`
 			CSV     string                   `json:"recipients_csv"`
 			Mode    string                   `json:"mode"`
@@ -84,12 +91,20 @@ func registerJobs(api *gin.RouterGroup, store *distribution.Store, manager *deli
 		if !boundedJSON(c, &request, 32<<10) {
 			return
 		}
+		if request.Quality != nil && !request.Quality.Valid() {
+			platformError(c, quality.ErrPolicy)
+			return
+		}
 		recipients, err := distribution.ParseRecipients(request.CSV)
 		if err != nil {
 			platformError(c, err)
 			return
 		}
-		job, err := store.NewJob(c.GetHeader("Idempotency-Key"), c.GetString("username"), request.Sources, recipients, request.Mode, request.Text, request.Style)
+		policies := []quality.Policy{}
+		if request.Quality != nil {
+			policies = append(policies, *request.Quality)
+		}
+		job, err := store.NewJob(c.GetHeader("Idempotency-Key"), c.GetString("username"), request.Sources, recipients, request.Mode, request.Text, request.Style, policies...)
 		if err != nil {
 			platformError(c, err)
 			return

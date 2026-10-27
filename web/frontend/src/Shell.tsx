@@ -34,6 +34,8 @@ import { WatermarkPage } from "./WatermarkPage";
 import { LabPage } from "./LabPage";
 import { DualPage } from "./DualPage";
 import { useWorkbenchText } from "./workbenchText";
+import { TraceBatchPage } from "./TraceBatchPage";
+import { useFeatureText } from "./traceText";
 import { JobsPage } from "./JobsPage";
 import { AuditPage } from "./AuditPage";
 import { AuditBanner } from "./AuditBanner";
@@ -44,6 +46,7 @@ import { RecordsPage } from "./RecordsPage";
 import { KeysPage } from "./KeysPage";
 import { ErrorNotice } from "./ErrorNotice";
 const pages = [
+  "trace",
   "overview",
   "jobs",
   "audit",
@@ -74,6 +77,7 @@ export function Shell({
   const t = useText();
   const wt = useWorkbenchText();
   const jt = useJobText();
+  const ft = useFeatureText();
   const contentRef = useRef<HTMLDivElement>(null);
   const { token } = theme.useToken();
   const [page, setPage] = useState<Page>(currentPage);
@@ -141,6 +145,11 @@ export function Shell({
       key: "records",
       icon: <DatabaseOutlined aria-hidden="true" />,
       label: t.records,
+    },
+    {
+      key: "trace",
+      icon: <ScanOutlined aria-hidden="true" />,
+      label: ft.trace,
     },
     { key: "lab", icon: <ScanOutlined aria-hidden="true" />, label: wt.lab },
     {
@@ -268,7 +277,9 @@ export function Shell({
                     ? jt.jobs
                     : page === "audit"
                       ? jt.audit
-                      : t[page]}
+                      : page === "trace"
+                        ? ft.trace
+                        : t[page]}
             </Typography.Text>
           </Space>
           <div className="topbar-actions">
@@ -347,6 +358,7 @@ export function Shell({
             <div hidden={page !== "keys"}>
               <KeysPage active={active && page === "keys"} />
             </div>
+            {active && page === "trace" && <TraceBatchPage />}
             {active && page === "jobs" && <JobsPage />}
             {active && page === "audit" && <AuditPage />}
             {active && page === "lab" && <LabPage active />}

@@ -37,6 +37,8 @@ func auditAction(c *gin.Context) (string, bool) {
 		return "watermark.add", false
 	case "POST /api/extract-watermark":
 		return "watermark.extract", false
+	case "POST /api/workbench/trace-batch":
+		return "trace.batch", false
 	case "POST /api/workbench/verify":
 		return "report.verify", false
 	case "POST /api/workbench/dual":
@@ -91,7 +93,7 @@ func auditMiddleware(store *distribution.Store) gin.HandlerFunc {
 			}
 		}
 		outcome := "completed"
-		code := ""
+		code := c.GetString("audit_code")
 		if status >= 400 {
 			outcome = "failed"
 			code = fmt.Sprintf("http_%d", status)
