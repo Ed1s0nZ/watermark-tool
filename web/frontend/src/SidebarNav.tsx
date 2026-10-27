@@ -5,6 +5,8 @@ import {
   FileProtectOutlined,
   ScanOutlined,
   SettingOutlined,
+  RightOutlined,
+  DownOutlined,
 } from "@ant-design/icons";
 import { useText } from "./i18n";
 import { useWorkbenchText } from "./workbenchText";
@@ -59,6 +61,11 @@ export function SidebarNav({
       subMenuOpenDelay={0}
       inlineIndent={20}
       inlineCollapsed={collapsed}
+      expandIcon={({ isOpen }) =>
+        isOpen && !collapsed
+          ? <DownOutlined aria-hidden="true" style={{ fontSize: 12 }} />
+          : <RightOutlined aria-hidden="true" style={{ fontSize: 12 }} />
+      }
       selectedKeys={[page]}
       openKeys={openKeys}
       onOpenChange={onOpenChange}
