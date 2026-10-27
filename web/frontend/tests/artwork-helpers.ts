@@ -1,3 +1,4 @@
+import { configure } from "./editor-helpers";
 import { Page, Download, expect } from "@playwright/test";
 export async function login(page: Page) {
   await page.goto("/");
@@ -12,6 +13,7 @@ export async function login(page: Page) {
 }
 export async function choose(page: Page, label: string, title: string) {
   const control = page.getByRole("combobox", { name: label, exact: true });
+  if (!(await control.isVisible())) await configure(page);
   await control.scrollIntoViewIfNeeded();
   await control.press("Enter");
   await page
@@ -53,6 +55,7 @@ export async function drawRegion(
   width = 0.25,
   height = 0.25,
 ) {
+  await configure(page);
   const c = page.getByTestId("exclusion-canvas");
   await c.scrollIntoViewIfNeeded();
   const b = (await c.boundingBox())!;

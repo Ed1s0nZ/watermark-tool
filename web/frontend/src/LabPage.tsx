@@ -1,3 +1,4 @@
+import { FileUpload } from "./FileUpload";
 import { useEffect, useState } from "react";
 import {
   Alert,
@@ -67,15 +68,14 @@ export function LabPage({ active }: { active: boolean }) {
       <Card>
         <Space direction="vertical" size={16} style={{ width: "100%" }}>
           <Typography.Text>{t.file}</Typography.Text>
-          <input
-            aria-label={t.file}
-            type="file"
-            accept=".png,.jpg,.jpeg"
+          <FileUpload
+            label={t.file}
+            value={file ? [file] : []}
             disabled={job.busy}
-            onChange={(e) => {
+            onChange={(files) => {
               job.reset();
               setInvalid(false);
-              setFile(e.target.files?.[0]);
+              setFile(files[0]);
             }}
           />
           <Typography.Text>{t.payload}</Typography.Text>

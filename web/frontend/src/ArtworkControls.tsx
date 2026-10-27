@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { FileUpload } from "./FileUpload";
 import { Form, InputNumber, Select, Space, Typography } from "antd";
 import { ArtworkState, positions } from "./artwork";
 import { useArtText } from "./artText";
@@ -12,10 +12,6 @@ export function ArtworkControls({
   disabled?: boolean;
 }) {
   const t = useArtText();
-  const input = useRef<HTMLInputElement>(null);
-  useEffect(() => {
-    if (!value.logoFile && input.current) input.current.value = "";
-  }, [value.logoFile]);
   return (
     <>
       <Form.Item label={t.layers}>
@@ -34,15 +30,12 @@ export function ArtworkControls({
       {value.layers !== "text" && (
         <>
           <Form.Item label={t.logoFile} extra={t.logoHint}>
-            <input
-              ref={input}
-              aria-label={t.logoFile}
-              type="file"
-              accept=".png,.jpg,.jpeg"
+            <FileUpload
+              label={t.logoFile}
+              value={value.logoFile ? [value.logoFile] : []}
+              maxSize={5 * 1024 * 1024}
               disabled={disabled}
-              onChange={(e) =>
-                onChange({ ...value, logoFile: e.target.files?.[0] })
-              }
+              onChange={(files) => onChange({ ...value, logoFile: files[0] })}
             />
           </Form.Item>
           {value.expectedSHA && (

@@ -1,3 +1,11 @@
+import {
+  AdvancedSettings,
+  EmptyPreview,
+  FormStage,
+  FormWorkspace,
+} from "./FormWorkspace";
+import { useWorkspaceText } from "./workspaceText";
+import { FileUpload } from "./FileUpload";
 import { useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -50,6 +58,7 @@ function saved() {
 }
 export function JobsPage() {
   const t = useJobText();
+  const ui = useWorkspaceText();
   const [files, setFiles] = useState<File[]>([]);
   const [csv, setCSV] = useState("recipient_id,name\n001,Alice\n002,张三");
   const [mode, setMode] = useState<"blind" | "dual">("blind");
@@ -69,6 +78,7 @@ export function JobsPage() {
   const plan = useJob<Plan>();
   const action = useJob<DeliveryJob>();
   const controls = useJob<null>();
+  const csvImport = useJob<null>();
   const listing = useJob<{ items: DeliveryJob[]; total: number }>();
   const [q, setQ] = useState("");
   const [page, setPage] = useState(1);
@@ -79,8 +89,8 @@ export function JobsPage() {
       setStorageError(true);
     }
   }, []);
-  const csvInput = useRef<HTMLInputElement>(null);
-  const busy = plan.busy || action.busy || controls.busy;
+  const [csvFile, setCSVFile] = useState<File>();
+  const busy = plan.busy || action.busy || controls.busy || csvImport.busy;
   function change() {
     plan.reset();
     action.reset();
@@ -224,248 +234,281 @@ export function JobsPage() {
         <Typography.Text type="secondary">{t.hint}</Typography.Text>
       </div>
       <Alert message={t.limits} />
-      <PolicyControls
-        value={{
-          mode,
-          template: text,
-          style,
-          quality,
-          layout: { layers: artwork.layers, logo: artwork.logo },
-          output,
-        }}
-        disabled={busy}
-        onApply={(p) => {
-          change();
-          setMode(p.mode);
-          setText(p.template);
-          setStyle(p.style);
-          setQuality(p.quality);
-          setOutput(normalizedOutput(p.output));
-          setArtwork({
-            ...emptyArtwork(),
-            ...(p.layout ?? {}),
-            exclusions: artwork.exclusions,
-          });
-        }}
-      />
-
-      <Card>
-        <Form layout="vertical">
-          <OutputFields
-            value={output}
-            disabled={busy}
-            onChange={(v) => {
-              change();
-              setOutput(v);
-            }}
-          />
-          {mode === "dual" && (
-            <ArtworkControls
-              value={artwork}
-              disabled={busy}
-              onChange={(v) => {
-                change();
-                setArtwork(v);
-              }}
-            />
-          )}
-          <QualityFields
-            value={quality}
-            disabled={busy}
-            onChange={(v) => {
-              change();
-              setQuality(v);
-            }}
-          />
-          <Form.Item label={t.files}>
-            <input
-              aria-label={t.files}
-              type="file"
-              multiple
-              accept=".png,.jpg,.jpeg"
-              disabled={busy}
-              onChange={(e) => {
-                change();
-                setFiles(Array.from(e.target.files ?? []));
-              }}
-            />
-          </Form.Item>
-          {mode === "dual" && (
-            <ExclusionEditor
-              files={files}
-              value={artwork.exclusions}
-              disabled={busy}
-              onChange={(v) => {
-                change();
-                setArtwork({ ...artwork, exclusions: v });
-              }}
-            />
-          )}
-          <Form.Item label={t.csv}>
-            <Input.TextArea
-              aria-label={t.csv}
-              value={csv}
-              rows={4}
-              disabled={busy}
-              onChange={(e) => {
-                change();
-                setCSV(e.target.value);
-              }}
-            />
-          </Form.Item>
-          <input
-            ref={csvInput}
-            aria-label={t.importCSV}
-            type="file"
-            accept=".csv,text/csv"
-            style={{ display: "none" }}
-            disabled={busy}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              e.currentTarget.value = "";
-              if (!file) return;
-              change();
-              void controls.run(async (signal) => {
-                if (file.size > 16 * 1024)
-                  throw new APIError(422, "job_invalid");
-                let data: string;
-                try {
-                  data = new TextDecoder("utf-8", { fatal: true }).decode(
-                    await file.arrayBuffer(),
-                  );
-                } catch {
-                  throw new APIError(422, "job_invalid");
-                }
-                if (!signal.aborted) setCSV(data);
-                return null;
-              });
-            }}
-          />
-          <Form.Item>
-            <Button disabled={busy} onClick={() => csvInput.current?.click()}>
-              {t.importCSV}
-            </Button>
-          </Form.Item>
-          <Form.Item label={t.mode}>
-            <Select
-              aria-label={t.mode}
-              disabled={busy}
-              value={mode}
-              onChange={(v) => {
-                change();
-                setMode(v);
-              }}
-              options={[
-                { value: "blind", label: t.blind },
-                { value: "dual", label: t.dual },
-              ]}
-            />
-          </Form.Item>
-          {mode === "dual" && (
-            <>
-              <Form.Item label={t.template} extra={t.templateHint}>
-                <Input
-                  aria-label={t.template}
-                  value={text}
-                  disabled={busy}
-                  onChange={(e) => {
-                    change();
-                    setText(e.target.value);
-                  }}
-                />
-              </Form.Item>
-              <Form.Item label={t.styles}>
-                <Select
-                  aria-label={t.styles}
-                  style={{ width: 240, maxWidth: "100%" }}
-                  disabled={busy}
-                  placeholder={t.styles}
-                  onChange={(v) => {
-                    change();
-                    setStyle({ ...templates[Number(v)].style });
-                  }}
-                  options={templates.map((item, n) => ({
-                    value: String(n),
-                    label: item.name,
-                  }))}
-                />
-              </Form.Item>
-              <VisibleStyleFields
-                style={style}
-                busy={busy}
-                onChange={(value) => {
-                  change();
-                  setStyle({ ...style, ...value });
-                }}
-              />
-            </>
-          )}
-          {storageError && <Alert type="warning" message={t.invalid} />}
-          <Space wrap>
-            <Button
-              type="primary"
-              aria-label={t.prepare}
-              loading={plan.busy}
-              disabled={action.busy}
-              onClick={() =>
-                void plan.run((signal) =>
-                  prepare(
-                    files,
-                    csv,
+      <FormWorkspace
+        configuration={
+          <>
+            <FormStage number={1} title={ui.materials}>
+              <Form layout="vertical">
+                <Form.Item label={t.files}>
+                  <FileUpload
+                    label={t.files}
+                    value={files}
+                    disabled={busy}
+                    maxCount={5}
+                    maxTotal={128 * 1024 * 1024}
+                    onChange={(files) => {
+                      change();
+                      setFiles(files);
+                    }}
+                  />
+                </Form.Item>
+                <Form.Item label={t.csv}>
+                  <Input.TextArea
+                    aria-label={t.csv}
+                    value={csv}
+                    rows={4}
+                    disabled={busy}
+                    onChange={(e) => {
+                      change();
+                      setCSV(e.target.value);
+                    }}
+                  />
+                </Form.Item>
+                <Form.Item>
+                  <FileUpload
+                    label={t.importCSV}
+                    accept=".csv,text/csv"
+                    maxSize={16384}
+                    value={csvFile ? [csvFile] : []}
+                    disabled={busy}
+                    onChange={(files) => {
+                      const file = files[0];
+                      setCSVFile(file);
+                      csvImport.reset();
+                      if (!file) return;
+                      change();
+                      void csvImport.run(async (signal) => {
+                        let data: string;
+                        try {
+                          data = new TextDecoder("utf-8", {
+                            fatal: true,
+                          }).decode(await file.arrayBuffer());
+                        } catch {
+                          throw new APIError(422, "job_invalid");
+                        }
+                        if (!signal.aborted) setCSV(data);
+                        return null;
+                      });
+                    }}
+                  />
+                </Form.Item>
+              </Form>
+              <ErrorNotice error={csvImport.error} />
+            </FormStage>
+            <FormStage number={2} title={ui.configure}>
+              <Form layout="vertical">
+                <Form.Item label={t.mode}>
+                  <Select
+                    aria-label={t.mode}
+                    disabled={busy}
+                    value={mode}
+                    onChange={(v) => {
+                      change();
+                      setMode(v);
+                    }}
+                    options={[
+                      { value: "blind", label: t.blind },
+                      { value: "dual", label: t.dual },
+                    ]}
+                  />
+                </Form.Item>
+                {mode === "dual" && (
+                  <>
+                    <Form.Item label={t.template} extra={t.templateHint}>
+                      <Input
+                        aria-label={t.template}
+                        value={text}
+                        disabled={busy}
+                        onChange={(e) => {
+                          change();
+                          setText(e.target.value);
+                        }}
+                      />
+                    </Form.Item>
+                  </>
+                )}
+                {mode === "dual" && (
+                  <ArtworkControls
+                    value={artwork}
+                    disabled={busy}
+                    onChange={(v) => {
+                      change();
+                      setArtwork(v);
+                    }}
+                  />
+                )}
+              </Form>
+              <AdvancedSettings>
+                <PolicyControls
+                  value={{
                     mode,
-                    text,
+                    template: text,
                     style,
-                    signal,
-                    (done, total) => {
-                      if (!signal.aborted)
-                        setProgress(`${t.rendering} ${done}/${total}`);
-                    },
                     quality,
-                    artwork,
+                    layout: { layers: artwork.layers, logo: artwork.logo },
                     output,
-                  ).catch((e) => {
-                    if (e instanceof APIError) throw e;
-                    if (e instanceof Error && e.message.startsWith("artwork_"))
-                      throw new APIError(422, e.message);
-                    if (e instanceof Error && e.message === "font")
-                      throw new APIError(422, "job_font");
-                    throw new APIError(422, "job_invalid");
-                  }),
-                )
-              }
-            >
-              {t.prepare}
-            </Button>
-            <Button
-              type="primary"
-              aria-label={t.create}
-              disabled={!plan.value || plan.busy}
-              loading={action.busy}
-              onClick={() => void action.run((signal) => transfer(signal))}
-            >
-              {t.create}
-            </Button>
-            {busy && (
+                  }}
+                  disabled={busy}
+                  onApply={(p) => {
+                    change();
+                    setMode(p.mode);
+                    setText(p.template);
+                    setStyle(p.style);
+                    setQuality(p.quality);
+                    setOutput(normalizedOutput(p.output));
+                    setArtwork({
+                      ...emptyArtwork(),
+                      ...(p.layout ?? {}),
+                      exclusions: artwork.exclusions,
+                    });
+                  }}
+                />
+
+                <Form layout="vertical">
+                  {mode === "dual" && (
+                    <>
+                      <Form.Item label={t.styles}>
+                        <Select
+                          aria-label={t.styles}
+                          style={{ width: 240, maxWidth: "100%" }}
+                          disabled={busy}
+                          placeholder={t.styles}
+                          onChange={(v) => {
+                            change();
+                            setStyle({ ...templates[Number(v)].style });
+                          }}
+                          options={templates.map((item, n) => ({
+                            value: String(n),
+                            label: item.name,
+                          }))}
+                        />
+                      </Form.Item>
+                      <VisibleStyleFields
+                        style={style}
+                        busy={busy}
+                        onChange={(value) => {
+                          change();
+                          setStyle({ ...style, ...value });
+                        }}
+                      />
+                    </>
+                  )}
+                  {mode === "dual" && (
+                    <ExclusionEditor
+                      files={files}
+                      value={artwork.exclusions}
+                      disabled={busy}
+                      onChange={(v) => {
+                        change();
+                        setArtwork({ ...artwork, exclusions: v });
+                      }}
+                    />
+                  )}
+                  <OutputFields
+                    value={output}
+                    disabled={busy}
+                    onChange={(v) => {
+                      change();
+                      setOutput(v);
+                    }}
+                  />
+                  <QualityFields
+                    value={quality}
+                    disabled={busy}
+                    onChange={(v) => {
+                      change();
+                      setQuality(v);
+                    }}
+                  />
+                </Form>
+                {storageError && <Alert type="warning" message={t.invalid} />}
+              </AdvancedSettings>
+            </FormStage>
+          </>
+        }
+        preview={
+          <>
+            <FormStage number={3} title={ui.preview}>
+              {!plan.value && <EmptyPreview />}
+              {plan.value && <JobPreview plan={plan.value} />}
               <Button
-                onClick={() => {
-                  plan.cancel();
-                  action.cancel();
-                }}
+                type="primary"
+                aria-label={t.prepare}
+                loading={plan.busy}
+                disabled={action.busy}
+                onClick={() =>
+                  void plan.run((signal) =>
+                    prepare(
+                      files,
+                      csv,
+                      mode,
+                      text,
+                      style,
+                      signal,
+                      (done, total) => {
+                        if (!signal.aborted)
+                          setProgress(`${t.rendering} ${done}/${total}`);
+                      },
+                      quality,
+                      artwork,
+                      output,
+                    ).catch((e) => {
+                      if (e instanceof APIError) throw e;
+                      if (
+                        e instanceof Error &&
+                        e.message.startsWith("artwork_")
+                      )
+                        throw new APIError(422, e.message);
+                      if (e instanceof Error && e.message === "font")
+                        throw new APIError(422, "job_font");
+                      throw new APIError(422, "job_invalid");
+                    }),
+                  )
+                }
               >
-                {t.stopUpload}
+                {t.prepare}
               </Button>
-            )}
-          </Space>
-        </Form>
-        {progress && (
-          <Typography.Paragraph role="status">{progress}</Typography.Paragraph>
-        )}
-        {(plan.cancelled || action.cancelled) && <Alert message={t.stopped} />}
-        <ErrorNotice error={plan.error} />
-        <ErrorNotice error={action.error} />
-        <ErrorNotice error={controls.error} />
-      </Card>
-      {plan.value && <JobPreview plan={plan.value} />}
+              {progress && (
+                <Typography.Paragraph role="status">
+                  {progress}
+                </Typography.Paragraph>
+              )}
+              {(plan.cancelled || action.cancelled) && (
+                <Alert message={t.stopped} />
+              )}
+              <ErrorNotice error={plan.error} />
+              <ErrorNotice error={action.error} />
+              <ErrorNotice error={controls.error} />
+            </FormStage>
+            <FormStage number={4} title={ui.deliver}>
+              <Typography.Paragraph type="secondary">
+                {ui.waiting}
+              </Typography.Paragraph>
+              <Space wrap>
+                <Button
+                  type="primary"
+                  aria-label={t.create}
+                  disabled={!plan.value || plan.busy}
+                  loading={action.busy}
+                  onClick={() => void action.run((signal) => transfer(signal))}
+                >
+                  {t.create}
+                </Button>
+                {busy && (
+                  <Button
+                    onClick={() => {
+                      plan.cancel();
+                      action.cancel();
+                    }}
+                  >
+                    {t.stopUpload}
+                  </Button>
+                )}
+              </Space>
+            </FormStage>
+          </>
+        }
+      />
       <ErrorNotice error={pollError} />
       {task ? (
         <JobDetails

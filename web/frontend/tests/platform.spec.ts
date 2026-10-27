@@ -1,3 +1,4 @@
+import { configure, review } from "./editor-helpers";
 import { navigate } from "./navigation";
 import { test, expect } from "@playwright/test";
 import { Buffer } from "node:buffer";
@@ -203,6 +204,7 @@ test("authenticated platform, watermark round trip, preferences and mobile navig
     extract.getByText("Created at", { exact: true }),
   ).not.toBeVisible();
   await page.reload();
+  await configure(page);
   await expect(
     page.getByRole("heading", { name: "Extract a watermark", exact: true }),
   ).toBeVisible();

@@ -1,3 +1,4 @@
+import { configure, review } from "./editor-helpers";
 import { navigate } from "./navigation";
 import { test, expect } from "@playwright/test";
 import { createHash } from "node:crypto";
@@ -14,12 +15,14 @@ test("cancel preparing upload, preserve identity on retry and recover on mobile 
     .fill("local-test-password-2026");
   await page.getByRole("button", { name: "登录工作台", exact: true }).click();
   await navigate(page, "多图分发任务");
+  await configure(page);
   await page
     .getByLabel("任务原图", { exact: true })
     .setInputFiles("../../internal/blind/testdata/clean.png");
   await page
     .getByRole("textbox", { name: "任务接收人 CSV", exact: true })
     .fill("recipient_id,name\n001,Alice\n002,Bob");
+  await review(page);
   await page.getByRole("button", { name: "校验并预览", exact: true }).click();
   await expect(
     page.getByRole("img", { name: "任务副本预览", exact: true }),
@@ -51,6 +54,7 @@ test("cancel preparing upload, preserve identity on retry and recover on mobile 
   expect(cancelled.upload_token).not.toBe(created.upload_token);
   expect(cancelled.generated).toBe(false);
   await page.reload();
+  await configure(page);
   await expect(page.getByText("已取消", { exact: true }).first()).toBeVisible();
   await expect(
     page.getByRole("button", { name: "按当前预览继续上传并重试", exact: true }),
@@ -59,6 +63,7 @@ test("cancel preparing upload, preserve identity on retry and recover on mobile 
   await page
     .getByLabel("任务原图", { exact: true })
     .setInputFiles("../../internal/blind/testdata/clean.png");
+  await review(page);
   await page.getByRole("button", { name: "校验并预览", exact: true }).click();
   await expect(
     page.getByRole("img", { name: "任务副本预览", exact: true }),
@@ -88,6 +93,7 @@ test("cancel preparing upload, preserve identity on retry and recover on mobile 
   ).toBe(completed.archive_sha256);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.reload();
+  await configure(page);
   await expect(
     page.getByRole("button", { name: "下载整套 ZIP", exact: true }),
   ).toBeVisible();

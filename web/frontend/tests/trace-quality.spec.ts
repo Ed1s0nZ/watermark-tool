@@ -1,3 +1,4 @@
+import { configure, review } from "./editor-helpers";
 import { navigate } from "./navigation";
 import { test, expect, Download } from "@playwright/test";
 import { readFile } from "node:fs/promises";
@@ -20,6 +21,7 @@ test("policies, streamed mixed tracing, cancellation and quality gating", async 
     .fill("local-test-password-2026");
   await page.getByRole("button", { name: "登录工作台", exact: true }).click();
   await navigate(page, "多图分发任务");
+  await configure(page);
   await page.getByLabel("策略名称", { exact: true }).fill("TeamPreset");
   await page.getByRole("button", { name: "保存为新策略", exact: true }).click();
   const stored = await page.evaluate(() =>
@@ -48,6 +50,7 @@ test("policies, streamed mixed tracing, cancellation and quality gating", async 
     .fill("36");
   await page.getByRole("button", { name: "更新所选策略", exact: true }).click();
   await page.reload();
+  await configure(page);
   await page.getByRole("combobox", { name: "选择策略", exact: true }).click();
   await page
     .locator(".ant-select-dropdown:visible")
@@ -107,6 +110,7 @@ test("policies, streamed mixed tracing, cancellation and quality gating", async 
     );
   });
   await page.reload();
+  await configure(page);
   await expect(page.getByText(/策略存储不可用/)).toBeVisible();
   await page.getByLabel("策略名称", { exact: true }).fill("Recovered");
   await page.getByRole("button", { name: "保存为新策略", exact: true }).click();
@@ -128,6 +132,7 @@ test("policies, streamed mixed tracing, cancellation and quality gating", async 
     );
   });
   await page.reload();
+  await configure(page);
   await page.getByLabel("策略名称", { exact: true }).fill("TwentyFirst");
   await page.getByRole("button", { name: "保存为新策略", exact: true }).click();
   await expect(page.getByText(/策略存储不可用/)).toBeVisible();
@@ -221,6 +226,7 @@ test("policies, streamed mixed tracing, cancellation and quality gating", async 
     ),
   ).toBe(true);
   await navigate(page, "双水印模板");
+  await configure(page);
   await page.getByLabel("双水印原图", { exact: true }).setInputFiles({
     name: "clean.png",
     mimeType: "image/png",
@@ -234,6 +240,7 @@ test("policies, streamed mixed tracing, cancellation and quality gating", async 
   await page
     .getByRole("spinbutton", { name: "最低PSNR dB", exact: true })
     .fill("60");
+  await review(page);
   await page.getByRole("button", { name: "生成预览", exact: true }).click();
   await page.getByRole("button", { name: "生成双水印", exact: true }).click();
   await expect(page.getByText("未过质量门槛", { exact: true })).toBeVisible();
@@ -243,6 +250,7 @@ test("policies, streamed mixed tracing, cancellation and quality gating", async 
   await page
     .getByRole("switch", { name: "启用最终成品最低PSNR", exact: true })
     .click();
+  await review(page);
   await page.getByRole("button", { name: "生成预览", exact: true }).click();
   await page.getByRole("button", { name: "生成双水印", exact: true }).click();
   await expect(page.getByText("通过", { exact: true })).toBeVisible();
@@ -250,6 +258,7 @@ test("policies, streamed mixed tracing, cancellation and quality gating", async 
   await page
     .locator(".ant-card")
     .filter({ has: page.getByText("质量摘要", { exact: true }) })
+    .last()
     .scrollIntoViewIfNeeded();
   await page.screenshot({
     animations: "disabled",
@@ -257,6 +266,7 @@ test("policies, streamed mixed tracing, cancellation and quality gating", async 
     fullPage: true,
   });
   await page.setViewportSize({ width: 390, height: 844 });
+  await review(page);
   await page
     .getByRole("combobox", { name: "语言", exact: true })
     .press("Enter");
@@ -272,6 +282,7 @@ test("policies, streamed mixed tracing, cancellation and quality gating", async 
   await page
     .locator(".ant-card")
     .filter({ has: page.getByText("Quality summary", { exact: true }) })
+    .last()
     .scrollIntoViewIfNeeded();
   expect(
     await page.evaluate(

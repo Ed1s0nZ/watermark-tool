@@ -1,3 +1,4 @@
+import { FileUpload } from "./FileUpload";
 import { useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -265,12 +266,15 @@ export function RecordsPage({ active }: { active: boolean }) {
       >
         <Space direction="vertical" size={16} style={{ width: "100%" }}>
           <Alert showIcon type="info" message={t.rebuildHint} />
-          <input
-            aria-label={t.originalImage}
-            type="file"
+          <FileUpload
+            label={t.originalImage}
+            value={file ? [file] : []}
             disabled={busy}
-            accept=".png,.jpg,.jpeg"
-            onChange={(e) => setFile(e.target.files?.[0])}
+            onChange={(files) => {
+              setFile(files[0]);
+              clear();
+              setError(undefined);
+            }}
           />
           <ErrorNotice error={error} />
           <Button

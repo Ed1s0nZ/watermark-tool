@@ -1,3 +1,4 @@
+import { configure, review } from "./editor-helpers";
 import { navigate } from "./navigation";
 import { test, expect } from "@playwright/test";
 import { readFile } from "node:fs/promises";
@@ -21,6 +22,7 @@ test("transparent logo, exact visible exclusions, touch editor and JPEG final ve
   const rawHash = createHash("sha256").update(original).digest("hex"),
     logoHash = createHash("sha256").update(logo).digest("hex");
   await navigate(page, "双水印模板");
+  await configure(page);
   await page.getByLabel("双水印原图", { exact: true }).setInputFiles({
     name: "source.png",
     mimeType: "image/png",
@@ -35,6 +37,7 @@ test("transparent logo, exact visible exclusions, touch editor and JPEG final ve
   await expect(
     page.getByRole("spinbutton", { name: "区域 1 x %", exact: true }),
   ).toBeVisible();
+  await review(page);
   await page.getByRole("button", { name: "生成预览", exact: true }).click();
   await expect(
     page.getByRole("img", { name: "生成预览", exact: true }),
@@ -122,6 +125,7 @@ test("transparent logo, exact visible exclusions, touch editor and JPEG final ve
       mimeType: "image/jpeg",
       buffer: jpgLogo,
     });
+  await review(page);
   await page.getByRole("button", { name: "生成预览", exact: true }).click();
   await expect(
     page.getByRole("img", { name: "生成预览", exact: true }),
@@ -137,6 +141,7 @@ test("transparent logo, exact visible exclusions, touch editor and JPEG final ve
   await page
     .getByRole("spinbutton", { name: "JPEG编码质量", exact: true })
     .fill("90");
+  await review(page);
   await page.getByRole("button", { name: "生成预览", exact: true }).click();
   await page.getByRole("button", { name: "生成双水印", exact: true }).click();
   await expect(page.getByText("通过", { exact: true })).toBeVisible();
@@ -159,6 +164,7 @@ test("transparent logo, exact visible exclusions, touch editor and JPEG final ve
   await page
     .locator(".ant-card")
     .filter({ has: page.getByText("质量摘要", { exact: true }) })
+    .last()
     .scrollIntoViewIfNeeded();
   await page.screenshot({
     path: info.outputPath("logo-jpeg-quality.png"),
@@ -166,6 +172,7 @@ test("transparent logo, exact visible exclusions, touch editor and JPEG final ve
     animations: "disabled",
   });
   await choose(page, "样式", "平铺");
+  await review(page);
   await page.getByRole("button", { name: "生成预览", exact: true }).click();
   await expect(
     page.getByRole("img", { name: "生成预览", exact: true }),
@@ -210,6 +217,7 @@ test("transparent logo, exact visible exclusions, touch editor and JPEG final ve
     mimeType: "image/png",
     buffer: Buffer.from("broken"),
   });
+  await review(page);
   await page.getByRole("button", { name: "生成预览", exact: true }).click();
   await expect(
     page.getByText("Logo、布局或区域无效，请检查尺寸、透明度和矩形范围。", {
@@ -221,6 +229,7 @@ test("transparent logo, exact visible exclusions, touch editor and JPEG final ve
     mimeType: "image/png",
     buffer: Buffer.alloc(5 * 1024 * 1024 + 1),
   });
+  await review(page);
   await page.getByRole("button", { name: "生成预览", exact: true }).click();
   await expect(
     page.getByText("Logo、布局或区域无效，请检查尺寸、透明度和矩形范围。", {
@@ -249,6 +258,7 @@ test("transparent logo, exact visible exclusions, touch editor and JPEG final ve
       mimeType: "image/png",
       buffer: oversizedLogo,
     });
+  await review(page);
   await page.getByRole("button", { name: "生成预览", exact: true }).click();
   await expect(
     page.getByText("Logo、布局或区域无效，请检查尺寸、透明度和矩形范围。", {
@@ -270,6 +280,7 @@ test("transparent logo, exact visible exclusions, touch editor and JPEG final ve
     await page
       .getByRole("spinbutton", { name: `区域 1 ${k} %`, exact: true })
       .fill(value);
+  await review(page);
   await page.getByRole("button", { name: "生成预览", exact: true }).click();
   await expect(
     page.getByText("可见水印没有可用完整位置，请缩小水印或调整避让区域。", {

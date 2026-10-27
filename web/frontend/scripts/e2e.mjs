@@ -12,6 +12,7 @@ const suites =
   process.argv.length > 2
     ? [process.argv.slice(2)]
     : [
+        ["form-workspace.spec.ts"],
         ["navigation.spec.ts"],
         ["platform.spec.ts"],
         ["distribution.spec.ts"],

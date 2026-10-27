@@ -1,3 +1,4 @@
+import { FileUpload } from "./FileUpload";
 import { OutputFields, OutputOptions } from "./OutputFields";
 import {
   Quality,
@@ -22,7 +23,6 @@ import {
   Steps,
   Tag,
   Typography,
-  Upload,
 } from "antd";
 import {
   CheckCircleOutlined,
@@ -219,47 +219,24 @@ export function WatermarkPage({
                 </>
               )}
               <Form.Item label={t.upload}>
-                <Upload.Dragger
+                <FileUpload
+                  label={t.upload}
+                  value={file ? [file] : []}
                   accept={allowedTypes.map((type) => "." + type).join(",")}
-                  multiple={false}
-                  maxCount={1}
                   disabled={busy || !types.length}
-                  fileList={
-                    file
-                      ? [{ uid: "selected", name: file.name, status: "done" }]
-                      : []
+                  showError={false}
+                  onReject={(reason) =>
+                    setValidation(
+                      reason === "large" ? "tooLarge" : "invalidFile",
+                    )
                   }
-                  beforeUpload={(selected) => {
-                    const extension = selected.name
-                      .split(".")
-                      .pop()
-                      ?.toLowerCase();
-                    if (!extension || !allowedTypes.includes(extension)) {
-                      setValidation("invalidFile");
-                      return Upload.LIST_IGNORE;
-                    }
-                    if (selected.size > 50 * 1024 * 1024) {
-                      setValidation("tooLarge");
-                      return Upload.LIST_IGNORE;
-                    }
-                    setFile(selected);
+                  onChange={(files) => {
+                    setFile(files[0]);
+                    clearResult();
                     setValidation(undefined);
                     setError(undefined);
-                    clearResult();
-                    return false;
                   }}
-                  onRemove={() => {
-                    setFile(undefined);
-                    clearResult();
-                    setValidation(undefined);
-                  }}
-                >
-                  <p className="ant-upload-drag-icon">
-                    <InboxOutlined aria-hidden="true" />
-                  </p>
-                  <p className="ant-upload-text">{t.drop}</p>
-                  <p className="ant-upload-hint">{t.uploadHint}</p>
-                </Upload.Dragger>
+                />
                 <div className="format-list">
                   <Space wrap size={[4, 6]}>
                     {allowedTypes.map((type) => (

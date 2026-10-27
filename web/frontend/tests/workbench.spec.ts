@@ -1,3 +1,4 @@
+import { configure, review } from "./editor-helpers";
 import { navigate } from "./navigation";
 import { test, expect, Download } from "@playwright/test";
 import { createHash } from "node:crypto";
@@ -70,6 +71,7 @@ test("experiment, bilingual dual watermark, templates and truthful reports", asy
   ).toBeVisible();
   await page.unroute("**/api/workbench/lab");
   await navigate(page, "双水印模板");
+  await configure(page);
   await page
     .getByLabel("双水印原图", { exact: true })
     .setInputFiles("../../internal/blind/testdata/clean.png");
@@ -86,6 +88,7 @@ test("experiment, bilingual dual watermark, templates and truthful reports", asy
   expect(stored).not.toContain("内部资料");
   expect(stored).not.toContain("<script>");
   await page.reload();
+  await configure(page);
   await page.getByRole("combobox", { name: "模板", exact: true }).click();
   await page.getByTitle("内部模板", { exact: true }).click();
   await page
@@ -95,6 +98,7 @@ test("experiment, bilingual dual watermark, templates and truthful reports", asy
   await page
     .getByLabel("隐形载荷", { exact: true })
     .fill("<script>测试</script>");
+  await review(page);
   await page.getByRole("button", { name: "生成预览", exact: true }).click();
   await expect(
     page.getByText("预览完成，请核对文字后生成。", { exact: true }),
@@ -120,6 +124,7 @@ test("experiment, bilingual dual watermark, templates and truthful reports", asy
   await expect(
     page.getByRole("img", { name: "生成预览", exact: true }),
   ).toHaveCount(0);
+  await review(page);
   await page.getByRole("button", { name: "生成预览", exact: true }).click();
   await expect(
     page.getByText("预览完成，请核对文字后生成。", { exact: true }),
@@ -215,6 +220,7 @@ test("experiment, bilingual dual watermark, templates and truthful reports", asy
   await expect(
     page.getByRole("button", { name: "Open navigation", exact: true }),
   ).toBeFocused();
+  await configure(page);
   await page
     .getByRole("combobox", { name: "Appearance", exact: true })
     .first()
@@ -275,6 +281,7 @@ test("experiment, bilingual dual watermark, templates and truthful reports", asy
     .getByRole("button", { name: "Open navigation", exact: true })
     .click();
   await navigate(page, "Dual watermark templates");
+  await configure(page);
   await page
     .getByLabel("Dual watermark source", { exact: true })
     .setInputFiles("../../internal/blind/testdata/clean.png");
@@ -284,6 +291,7 @@ test("experiment, bilingual dual watermark, templates and truthful reports", asy
   await page
     .getByRole("textbox", { name: "Invisible payload", exact: true })
     .fill("Mobile-A");
+  await review(page);
   await page
     .getByRole("button", { name: "Create preview", exact: true })
     .click();

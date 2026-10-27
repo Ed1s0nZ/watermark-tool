@@ -1,4 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import {
+  AdvancedSettings,
+  EmptyPreview,
+  FormStage,
+  FormWorkspace,
+} from "./FormWorkspace";
+import { useWorkspaceText } from "./workspaceText";
+import { FileUpload } from "./FileUpload";
+import { useEffect, useState } from "react";
 import {
   Alert,
   Button,
@@ -29,7 +37,6 @@ import { useWorkbenchText } from "./workbenchText";
 import {
   defaultStyle,
   loadTemplates,
-  renderVisible,
   storeTemplates,
   validStyle,
   Style,
@@ -37,6 +44,7 @@ import {
 } from "./visibleWatermark";
 export function DualPage({ active }: { active: boolean }) {
   const t = useWorkbenchText();
+  const ui = useWorkspaceText();
   const at = useArtText();
   const [file, setFile] = useState<File>();
   const [text, setText] = useState("");
@@ -54,7 +62,6 @@ export function DualPage({ active }: { active: boolean }) {
   const output = useJob<{ blob: Blob; quality: Quality }>();
   const [previewURL, setPreviewURL] = useState("");
   const [outputURL, setOutputURL] = useState("");
-  const imageInput = useRef<HTMLInputElement>(null);
   useEffect(() => {
     try {
       setTemplates(loadTemplates());
@@ -114,301 +121,346 @@ export function DualPage({ active }: { active: boolean }) {
         <Typography.Title level={2}>{t.dual}</Typography.Title>
         <Typography.Text type="secondary">{t.dualHint}</Typography.Text>
       </div>
-      <PolicyControls
-        value={{
-          mode: "dual",
-          template: "{name}",
-          style,
-          quality,
-          layout: { layers: artwork.layers, logo: artwork.logo },
-          output: format,
-        }}
-        disabled={busy}
-        onApply={(p) => {
-          reset();
-          setStyle(p.style);
-          setQuality(p.quality);
-          setFormat(normalizedOutput(p.output));
-          setArtwork({
-            ...emptyArtwork(),
-            ...(p.layout ?? {}),
-            exclusions: artwork.exclusions,
-          });
-        }}
-      />
+      <FormWorkspace
+        configuration={
+          <>
+            <FormStage number={1} title={ui.materials}>
+              <Form layout="vertical">
+                <Form.Item label={t.dualFile}>
+                  <FileUpload
+                    label={t.dualFile}
+                    value={file ? [file] : []}
+                    disabled={busy}
+                    onChange={(files) => {
+                      reset();
+                      setFile(files[0]);
+                    }}
+                  />
+                </Form.Item>
+              </Form>
+            </FormStage>
+            <FormStage number={2} title={ui.configure}>
+              <Form layout="vertical">
+                <ArtworkControls
+                  value={artwork}
+                  disabled={busy}
+                  onChange={(v) => {
+                    reset();
+                    setArtwork(v);
+                  }}
+                />
+                <Form.Item label={t.visible}>
+                  <Input
+                    aria-label={t.visible}
+                    value={text}
+                    disabled={busy}
+                    onChange={(e) => {
+                      reset();
+                      setText(e.target.value);
+                    }}
+                  />
+                </Form.Item>
+                <Form.Item label={t.payload}>
+                  <Input
+                    aria-label={t.payload}
+                    value={payload}
+                    disabled={busy}
+                    onChange={(e) => {
+                      reset();
+                      setPayload(e.target.value);
+                    }}
+                  />
+                </Form.Item>
+              </Form>
+              <AdvancedSettings>
+                <PolicyControls
+                  value={{
+                    mode: "dual",
+                    template: "{name}",
+                    style,
+                    quality,
+                    layout: { layers: artwork.layers, logo: artwork.logo },
+                    output: format,
+                  }}
+                  disabled={busy}
+                  onApply={(p) => {
+                    reset();
+                    setStyle(p.style);
+                    setQuality(p.quality);
+                    setFormat(normalizedOutput(p.output));
+                    setArtwork({
+                      ...emptyArtwork(),
+                      ...(p.layout ?? {}),
+                      exclusions: artwork.exclusions,
+                    });
+                  }}
+                />
 
-      <Card>
-        <Form layout="vertical">
-          <OutputFields
-            value={format}
-            disabled={busy}
-            onChange={(v) => {
-              reset();
-              setFormat(v);
-            }}
-          />
-          <ArtworkControls
-            value={artwork}
-            disabled={busy}
-            onChange={(v) => {
-              reset();
-              setArtwork(v);
-            }}
-          />
-          <QualityFields
-            value={quality}
-            disabled={busy}
-            onChange={(v) => {
-              reset();
-              setQuality(v);
-            }}
-          />
-          <Form.Item label={t.dualFile}>
-            <input
-              ref={imageInput}
-              aria-label={t.dualFile}
-              type="file"
-              accept=".png,.jpg,.jpeg"
-              disabled={busy}
-              onChange={(e) => {
-                reset();
-                setFile(e.target.files?.[0]);
-              }}
-            />
-          </Form.Item>
-          <ExclusionEditor
-            files={file ? [file] : []}
-            value={artwork.exclusions}
-            disabled={busy}
-            onChange={(v) => {
-              reset();
-              setArtwork({ ...artwork, exclusions: v });
-            }}
-          />
-          <Form.Item label={t.visible}>
-            <Input
-              aria-label={t.visible}
-              value={text}
-              disabled={busy}
-              onChange={(e) => {
-                reset();
-                setText(e.target.value);
-              }}
-            />
-          </Form.Item>
-          <Form.Item label={t.payload}>
-            <Input
-              aria-label={t.payload}
-              value={payload}
-              disabled={busy}
-              onChange={(e) => {
-                reset();
-                setPayload(e.target.value);
-              }}
-            />
-          </Form.Item>
-          <Space wrap align="start">
-            <Form.Item label={t.template}>
-              <Select
-                aria-label={t.template}
-                disabled={busy}
-                style={{ width: 240 }}
-                value={selected || undefined}
-                placeholder={t.builtin}
-                onChange={(v) => {
-                  reset();
-                  setSelected(v);
-                  setStyle(
-                    v === "corner"
-                      ? defaultStyle
-                      : v === "diagonal"
-                        ? { ...defaultStyle, mode: "tile" }
-                        : templates[Number(v)].style,
-                  );
-                }}
-                options={[
-                  { value: "corner", label: t.presetCorner },
-                  { value: "diagonal", label: t.presetTile },
-                  ...templates.map((i, n) => ({
-                    value: String(n),
-                    label: i.name,
-                  })),
-                ]}
-              />
-            </Form.Item>
-            <VisibleStyleFields
-              style={style}
-              busy={busy}
-              onChange={changeStyle}
-            />
-          </Space>
-          <Space wrap>
-            <Input
-              aria-label={t.templateName}
-              placeholder={t.templateName}
-              maxLength={40}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              style={{ width: 200 }}
-            />
-            <Button
-              disabled={busy || !name.trim() || !validStyle(style)}
-              onClick={() => {
-                const n = name.trim();
-                const items = templates.filter((i) => i.name !== n);
-                if (persist([...items, { name: n, style: { ...style } }])) {
-                  setSelected(String(items.length));
-                  setName("");
+                <Form layout="vertical">
+                  <Space wrap align="start">
+                    <Form.Item label={t.template}>
+                      <Select
+                        aria-label={t.template}
+                        disabled={busy}
+                        style={{ width: 240 }}
+                        value={selected || undefined}
+                        placeholder={t.builtin}
+                        onChange={(v) => {
+                          reset();
+                          setSelected(v);
+                          setStyle(
+                            v === "corner"
+                              ? defaultStyle
+                              : v === "diagonal"
+                                ? { ...defaultStyle, mode: "tile" }
+                                : templates[Number(v)].style,
+                          );
+                        }}
+                        options={[
+                          { value: "corner", label: t.presetCorner },
+                          { value: "diagonal", label: t.presetTile },
+                          ...templates.map((i, n) => ({
+                            value: String(n),
+                            label: i.name,
+                          })),
+                        ]}
+                      />
+                    </Form.Item>
+                    <VisibleStyleFields
+                      style={style}
+                      busy={busy}
+                      onChange={changeStyle}
+                    />
+                  </Space>
+                  <Space wrap>
+                    <Input
+                      aria-label={t.templateName}
+                      placeholder={t.templateName}
+                      maxLength={40}
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      style={{ width: 200 }}
+                    />
+                    <Button
+                      disabled={busy || !name.trim() || !validStyle(style)}
+                      onClick={() => {
+                        const n = name.trim();
+                        const items = templates.filter((i) => i.name !== n);
+                        if (
+                          persist([...items, { name: n, style: { ...style } }])
+                        ) {
+                          setSelected(String(items.length));
+                          setName("");
+                        }
+                      }}
+                    >
+                      {t.save}
+                    </Button>
+                    <Button
+                      disabled={busy || !/^\d+$/.test(selected)}
+                      onClick={() => {
+                        if (
+                          persist(
+                            templates.filter((_, n) => String(n) !== selected),
+                          )
+                        ) {
+                          reset();
+                          setSelected("");
+                        }
+                      }}
+                    >
+                      {t.remove}
+                    </Button>
+                  </Space>
+                  <ExclusionEditor
+                    files={file ? [file] : []}
+                    value={artwork.exclusions}
+                    disabled={busy}
+                    onChange={(v) => {
+                      reset();
+                      setArtwork({ ...artwork, exclusions: v });
+                    }}
+                  />
+                  <OutputFields
+                    value={format}
+                    disabled={busy}
+                    onChange={(v) => {
+                      reset();
+                      setFormat(v);
+                    }}
+                  />
+                  <QualityFields
+                    value={quality}
+                    disabled={busy}
+                    onChange={(v) => {
+                      reset();
+                      setQuality(v);
+                    }}
+                  />
+                </Form>
+                <Typography.Paragraph type="secondary">
+                  {t.templateHint}
+                </Typography.Paragraph>
+                <Typography.Paragraph type="secondary">
+                  {t.systemFont}
+                </Typography.Paragraph>
+                {storageError && (
+                  <Alert type="error" message={t.storageError} />
+                )}
+              </AdvancedSettings>
+            </FormStage>
+          </>
+        }
+        preview={
+          <>
+            <FormStage number={3} title={ui.preview}>
+              <Typography.Paragraph type="secondary">
+                {ui.previewOnly}
+              </Typography.Paragraph>
+              {!previewURL && <EmptyPreview />}
+              {previewURL && (
+                <>
+                  <Alert message={t.ready} />
+                  <img
+                    src={previewURL}
+                    alt={t.preview}
+                    style={{
+                      display: "block",
+                      maxWidth: "100%",
+                      maxHeight: 540,
+                      objectFit: "contain",
+                      marginTop: 16,
+                      marginBottom: 16,
+                    }}
+                  />
+                </>
+              )}
+              <Space wrap>
+                <Button
+                  type="primary"
+                  aria-label={t.preview}
+                  loading={preview.busy}
+                  disabled={output.busy}
+                  onClick={() => {
+                    output.reset();
+                    setMessage("");
+                    if (
+                      !file ||
+                      !payload.trim() ||
+                      new TextEncoder().encode(payload).length > 34
+                    ) {
+                      setMessage(t.invalid);
+                      return;
+                    }
+                    void preview.run(() =>
+                      renderArtwork(file, text, style, artwork),
+                    );
+                  }}
+                >
+                  {t.preview}
+                </Button>
+                {busy && (
+                  <Button
+                    onClick={() => {
+                      preview.cancel();
+                      output.cancel();
+                    }}
+                  >
+                    {t.cancel}
+                  </Button>
+                )}
+              </Space>
+
+              {preview.error != null && (
+                <Alert
+                  type="error"
+                  message={
+                    preview.error instanceof Error &&
+                    preview.error.message === "font"
+                      ? t.fontError
+                      : preview.error instanceof Error &&
+                          preview.error.message === "artwork_blocked"
+                        ? at.blocked
+                        : preview.error instanceof Error &&
+                            preview.error.message.startsWith("artwork_")
+                          ? at.invalid
+                          : t.invalid
+                  }
+                />
+              )}
+              {message && (
+                <Alert
+                  style={{ marginTop: 16 }}
+                  type="error"
+                  message={message}
+                />
+              )}
+            </FormStage>
+            <FormStage number={4} title={ui.deliver}>
+              <Typography.Paragraph type="secondary">
+                {ui.waiting}
+              </Typography.Paragraph>
+              <Button
+                type="primary"
+                disabled={!preview.value || preview.busy}
+                aria-label={t.generate}
+                loading={output.busy}
+                onClick={() =>
+                  void output.run(async (signal) => {
+                    const body = new FormData();
+                    body.append("file", preview.value!, "visible.png");
+                    body.append("watermark", payload);
+                    body.append("original", file!);
+                    body.append("quality_policy", JSON.stringify(quality));
+                    body.append("output", JSON.stringify(format));
+                    const response = await api("/workbench/dual", {
+                      method: "POST",
+                      body,
+                      signal,
+                    });
+                    return {
+                      blob: await response.blob(),
+                      quality: JSON.parse(
+                        response.headers.get("X-Watermark-Quality") || "null",
+                      ),
+                    };
+                  })
                 }
-              }}
-            >
-              {t.save}
-            </Button>
-            <Button
-              disabled={busy || !/^\d+$/.test(selected)}
-              onClick={() => {
-                if (
-                  persist(templates.filter((_, n) => String(n) !== selected))
-                ) {
-                  reset();
-                  setSelected("");
-                }
-              }}
-            >
-              {t.remove}
-            </Button>
-          </Space>
-        </Form>
-        <Typography.Paragraph type="secondary">
-          {t.templateHint}
-        </Typography.Paragraph>
-        {storageError && <Alert type="error" message={t.storageError} />}
-        <Space wrap>
-          <Button
-            type="primary"
-            aria-label={t.preview}
-            loading={preview.busy}
-            disabled={output.busy}
-            onClick={() => {
-              output.reset();
-              setMessage("");
-              if (
-                !file ||
-                !payload.trim() ||
-                new TextEncoder().encode(payload).length > 34
-              ) {
-                setMessage(t.invalid);
-                return;
-              }
-              void preview.run(() => renderArtwork(file, text, style, artwork));
-            }}
-          >
-            {t.preview}
-          </Button>
-          <Button
-            type="primary"
-            disabled={!preview.value || preview.busy}
-            aria-label={t.generate}
-            loading={output.busy}
-            onClick={() =>
-              void output.run(async (signal) => {
-                const body = new FormData();
-                body.append("file", preview.value!, "visible.png");
-                body.append("watermark", payload);
-                body.append("original", file!);
-                body.append("quality_policy", JSON.stringify(quality));
-                body.append("output", JSON.stringify(format));
-                const response = await api("/workbench/dual", {
-                  method: "POST",
-                  body,
-                  signal,
-                });
-                return {
-                  blob: await response.blob(),
-                  quality: JSON.parse(
-                    response.headers.get("X-Watermark-Quality") || "null",
-                  ),
-                };
-              })
-            }
-          >
-            {t.generate}
-          </Button>
-          {busy && (
-            <Button
-              onClick={() => {
-                preview.cancel();
-                output.cancel();
-              }}
-            >
-              {t.cancel}
-            </Button>
-          )}
-        </Space>
-        {preview.error != null && (
-          <Alert
-            type="error"
-            message={
-              preview.error instanceof Error && preview.error.message === "font"
-                ? t.fontError
-                : preview.error instanceof Error &&
-                    preview.error.message === "artwork_blocked"
-                  ? at.blocked
-                  : preview.error instanceof Error &&
-                      preview.error.message.startsWith("artwork_")
-                    ? at.invalid
-                    : t.invalid
-            }
-          />
-        )}
-        {message && (
-          <Alert style={{ marginTop: 16 }} type="error" message={message} />
-        )}
-        <ErrorNotice error={output.error} />
-        {output.error instanceof APIError &&
-          ["quality_failed", "output_verification"].includes(
-            output.error.code,
-          ) && (
-            <QualitySummary
-              value={(output.error.data as { quality?: Quality })?.quality}
-            />
-          )}
-        {(preview.cancelled || output.cancelled) && (
-          <Alert message={t.cancelled} />
-        )}
-        <Typography.Paragraph type="secondary" style={{ marginTop: 16 }}>
-          {t.systemFont}
-        </Typography.Paragraph>
-      </Card>
-      {previewURL && (
-        <Card title={t.preview}>
-          <Alert message={t.ready} />
-          <img
-            src={previewURL}
-            alt={t.preview}
-            style={{
-              maxWidth: "100%",
-              maxHeight: 540,
-              objectFit: "contain",
-              marginTop: 16,
-            }}
-          />
-        </Card>
-      )}
-      {output.value && <QualitySummary value={output.value.quality} />}
-      {outputURL && (
-        <Card>
-          <Space direction="vertical">
-            <Alert type="success" message={t.verified} />
-            <Button
-              href={outputURL}
-              download={`dual-watermark.${format.format === "jpeg" ? "jpg" : "png"}`}
-            >
-              {t.download}
-            </Button>
-          </Space>
-        </Card>
-      )}
+              >
+                {t.generate}
+              </Button>{" "}
+              <ErrorNotice error={output.error} />
+              {output.error instanceof APIError &&
+                ["quality_failed", "output_verification"].includes(
+                  output.error.code,
+                ) && (
+                  <QualitySummary
+                    value={
+                      (output.error.data as { quality?: Quality })?.quality
+                    }
+                  />
+                )}
+              {(preview.cancelled || output.cancelled) && (
+                <Alert message={t.cancelled} />
+              )}
+              {output.value && <QualitySummary value={output.value.quality} />}
+              {outputURL && (
+                <Card>
+                  <Space direction="vertical">
+                    <Alert type="success" message={t.verified} />
+                    <Button
+                      href={outputURL}
+                      download={`dual-watermark.${format.format === "jpeg" ? "jpg" : "png"}`}
+                    >
+                      {t.download}
+                    </Button>
+                  </Space>
+                </Card>
+              )}
+            </FormStage>
+          </>
+        }
+      />
     </Space>
   );
 }

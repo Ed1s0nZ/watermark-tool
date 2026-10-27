@@ -1,3 +1,4 @@
+import { FileUpload } from "./FileUpload";
 import { useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -249,14 +250,14 @@ export function TraceBatchPage() {
       <Alert message={t.temporary} />
       <Card>
         <Space direction="vertical" style={{ width: "100%" }}>
-          <input
-            aria-label={t.files}
-            type="file"
-            accept=".png,.jpg,.jpeg"
-            multiple
+          <FileUpload
+            label={t.files}
+            value={files}
             disabled={busy}
-            onChange={(e) => {
-              setFiles(Array.from(e.target.files ?? []));
+            maxCount={20}
+            maxTotal={128 * 1024 * 1024}
+            onChange={(files) => {
+              setFiles(files);
               state.current = undefined;
               setReport(undefined);
               setError(undefined);

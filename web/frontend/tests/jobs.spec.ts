@@ -1,3 +1,4 @@
+import { configure, review } from "./editor-helpers";
 import { navigate } from "./navigation";
 import { test, expect, Download } from "@playwright/test";
 import { readFile } from "node:fs/promises";
@@ -66,6 +67,7 @@ test("two images × three recipients: dual-watermark delivery, trace and audit",
     }, Array.from(original)),
   );
   await navigate(page, "多图分发任务");
+  await configure(page);
   await page.getByLabel("任务原图", { exact: true }).setInputFiles([
     { name: "one.png", mimeType: "image/png", buffer: original },
     { name: "two.png", mimeType: "image/png", buffer: second },
@@ -88,6 +90,7 @@ test("two images × three recipients: dual-watermark delivery, trace and audit",
   await page
     .getByRole("textbox", { name: "接收人文字模板", exact: true })
     .fill("A".repeat(60));
+  await review(page);
   await page.getByRole("button", { name: "校验并预览", exact: true }).click();
   await expect(
     page.getByText(
@@ -98,6 +101,7 @@ test("two images × three recipients: dual-watermark delivery, trace and audit",
   await page
     .getByRole("textbox", { name: "接收人文字模板", exact: true })
     .fill("内部资料 {name}/{recipient_id}");
+  await review(page);
   await page.getByRole("button", { name: "校验并预览", exact: true }).click();
   await expect(
     page.getByRole("img", { name: "任务副本预览", exact: true }),
@@ -201,6 +205,7 @@ test("two images × three recipients: dual-watermark delivery, trace and audit",
     animations: "disabled",
   });
   await page.reload();
+  await configure(page);
   await expect(
     page.getByRole("button", { name: "下载整套 ZIP", exact: true }),
   ).toBeVisible();

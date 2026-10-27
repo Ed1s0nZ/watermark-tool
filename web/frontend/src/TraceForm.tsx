@@ -1,3 +1,4 @@
+import { FileUpload } from "./FileUpload";
 import { useEffect, useState } from "react";
 import {
   Alert,
@@ -50,14 +51,14 @@ export function TraceForm({ active }: { active: boolean }) {
     <Card>
       <Space direction="vertical" size={20} style={{ width: "100%" }}>
         <Typography.Text type="secondary">{t.traceHint}</Typography.Text>
-        <input
-          aria-label={t.traceImage}
-          type="file"
-          accept=".png,.jpg,.jpeg"
+        <FileUpload
+          label={t.traceImage}
+          value={file ? [file] : []}
           disabled={busy}
-          onChange={(e) => {
-            setFile(e.target.files?.[0]);
+          onChange={(files) => {
+            setFile(files[0]);
             setResult(undefined);
+            setError(undefined);
           }}
         />
         <Select

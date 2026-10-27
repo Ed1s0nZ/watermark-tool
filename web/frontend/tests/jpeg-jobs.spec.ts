@@ -1,3 +1,4 @@
+import { configure, review } from "./editor-helpers";
 import { navigate } from "./navigation";
 import { test, expect } from "@playwright/test";
 import { readFile } from "node:fs/promises";
@@ -53,6 +54,7 @@ test("two source sizes, three recipients: pinned logo/regions, six real JPEG cop
     }, Array.from(original)),
   );
   await navigate(page, "多图分发任务");
+  await configure(page);
   await page.evaluate(() =>
     localStorage.setItem(
       "watermark.policies.v1",
@@ -79,6 +81,7 @@ test("two source sizes, three recipients: pinned logo/regions, six real JPEG cop
     ),
   );
   await page.reload();
+  await configure(page);
   await choose(page, "选择策略", "Legacy v1");
   await page
     .getByRole("button", { name: "明确应用所选策略", exact: true })
@@ -122,6 +125,7 @@ test("two source sizes, three recipients: pinned logo/regions, six real JPEG cop
   );
   expect(policy).not.toHaveProperty("exclusions");
   expect(policy.layout.logo).not.toHaveProperty("sha256");
+  await review(page);
   await page.getByRole("button", { name: "校验并预览", exact: true }).click();
   await expect(
     page.getByRole("img", { name: "任务副本预览", exact: true }),
@@ -179,6 +183,7 @@ test("two source sizes, three recipients: pinned logo/regions, six real JPEG cop
     mimeType: "image/png",
     buffer: original,
   });
+  await review(page);
   await page.getByRole("button", { name: "校验并预览", exact: true }).click();
   await expect(
     page.getByText("恢复任务需要相同Logo，请核对摘要并重新选择。", {
@@ -188,6 +193,7 @@ test("two source sizes, three recipients: pinned logo/regions, six real JPEG cop
   await page
     .getByLabel("Logo文件", { exact: true })
     .setInputFiles({ name: "logo.png", mimeType: "image/png", buffer: logo });
+  await review(page);
   await page.getByRole("button", { name: "校验并预览", exact: true }).click();
   await expect(
     page.getByRole("img", { name: "任务副本预览", exact: true }),
@@ -208,6 +214,7 @@ test("two source sizes, three recipients: pinned logo/regions, six real JPEG cop
     animations: "disabled",
   });
   await page.reload();
+  await configure(page);
   await expect(
     page.getByRole("button", { name: "下载整套 ZIP", exact: true }),
   ).toBeVisible();
@@ -215,7 +222,7 @@ test("two source sizes, three recipients: pinned logo/regions, six real JPEG cop
   await page
     .getByRole("button", { name: "明确应用所选策略", exact: true })
     .click();
-  await expect(page.getByLabel("Logo文件", { exact: true })).toBeVisible();
+  await expect(page.locator('[data-upload-label="Logo文件"] .file-dropzone')).toBeVisible();
   expect(
     await page
       .getByLabel("Logo文件", { exact: true })

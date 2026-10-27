@@ -1,14 +1,6 @@
+import { FileUpload } from "./FileUpload";
 import { useRef, useState } from "react";
-import {
-  Alert,
-  Button,
-  Card,
-  Form,
-  Input,
-  Space,
-  Typography,
-  Upload,
-} from "antd";
+import { Alert, Button, Card, Form, Input, Space, Typography } from "antd";
 import { api } from "./api";
 import { ErrorNotice } from "./ErrorNotice";
 import { useText } from "./i18n";
@@ -16,6 +8,7 @@ import { useArchive } from "./platform";
 export function BatchPage() {
   const t = useText();
   const [file, setFile] = useState<File>();
+  const [csvFile, setCSVFile] = useState<File>();
   const [csv, setCSV] = useState("recipient_id,name\n001,Alice\n002,Bob");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<unknown>();
@@ -65,14 +58,13 @@ export function BatchPage() {
       <Card>
         <Form layout="vertical" onFinish={submit}>
           <Form.Item label={t.upload}>
-            <input
-              aria-label={t.batchImage}
-              type="file"
-              accept=".png,.jpg,.jpeg"
+            <FileUpload
+              label={t.batchImage}
+              value={file ? [file] : []}
               disabled={busy}
-              onChange={(e) => {
+              onChange={(files) => {
                 changed();
-                setFile(e.target.files?.[0]);
+                setFile(files[0]);
               }}
             />
           </Form.Item>
@@ -87,26 +79,32 @@ export function BatchPage() {
                 setCSV(e.target.value);
               }}
             />
-            <Upload
-              accept=".csv"
-              showUploadList={false}
+            <FileUpload
+              label={t.importCSV}
+              accept=".csv,text/csv"
+              maxSize={16384}
+              value={csvFile ? [csvFile] : []}
               disabled={busy}
-              beforeUpload={async (selected) => {
-                try {
-                  if (selected.size > 16384) throw new Error();
-                  const text = new TextDecoder("utf-8", { fatal: true }).decode(
-                    await selected.arrayBuffer(),
-                  );
-                  changed();
-                  setCSV(text);
-                } catch {
-                  setInvalid(true);
-                }
-                return false;
+              onChange={(files) => {
+                const selected = files[0];
+                setCSVFile(selected);
+                if (!selected) return;
+                changed();
+                void (async () => {
+                  setBusy(true);
+                  try {
+                    const text = new TextDecoder("utf-8", {
+                      fatal: true,
+                    }).decode(await selected.arrayBuffer());
+                    setCSV(text);
+                  } catch {
+                    setInvalid(true);
+                  } finally {
+                    setBusy(false);
+                  }
+                })();
               }}
-            >
-              <Button style={{ marginTop: 12 }}>{t.importCSV}</Button>
-            </Upload>
+            />
           </Form.Item>
           <Space direction="vertical" style={{ width: "100%" }} size={16}>
             {invalid && (
