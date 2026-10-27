@@ -22,99 +22,19 @@ func init() {
 }
 
 // AddWatermark 为Word文档添加水印
-// 注意：由于文档格式的复杂性，这里使用一个简化的实现
-// 实际应用中可能需要更复杂的方法
+// 兼容标识保存在XML元数据中；不是文档内容的密码学认证。
 func (d *DOCXWatermarker) AddWatermark(inputFile, outputFile, watermarkText string) error {
-	// 创建临时目录
-	tempDir, err := os.MkdirTemp("", "docx-watermark-*")
-	if err != nil {
-		return fmt.Errorf("创建临时目录失败: %w", err)
-	}
-	defer os.RemoveAll(tempDir)
-
-	// 解压DOCX文件
-	err = unzipFile(inputFile, tempDir)
-	if err != nil {
-		return fmt.Errorf("解压DOCX文件失败: %w", err)
-	}
-
-	// 向文档添加水印
-	// 1. 修改document.xml，添加水印到页眉
-	documentPath := filepath.Join(tempDir, "word", "document.xml")
-	docContent, err := os.ReadFile(documentPath)
-	if err != nil {
-		return fmt.Errorf("读取document.xml失败: %w", err)
-	}
-
-	// 存储水印信息到文档属性
-	// 查找文档属性位置
-	corePropsPath := filepath.Join(tempDir, "docProps", "core.xml")
-	if _, err := os.Stat(corePropsPath); err == nil {
-		coreContent, err := os.ReadFile(corePropsPath)
-		if err == nil {
-			// 在关键词部分添加水印信息
-			modified := false
-			if bytes.Contains(coreContent, []byte("<cp:keywords>")) {
-				newContent := bytes.Replace(
-					coreContent,
-					[]byte("<cp:keywords>"),
-					[]byte(fmt.Sprintf("<cp:keywords>Watermark:%s ", watermarkText)),
-					1,
-				)
-				if !bytes.Equal(newContent, coreContent) {
-					coreContent = newContent
-					modified = true
-				}
-			} else if bytes.Contains(coreContent, []byte("</cp:coreProperties>")) {
-				// 如果没有关键词标签，添加一个
-				newContent := bytes.Replace(
-					coreContent,
-					[]byte("</cp:coreProperties>"),
-					[]byte(fmt.Sprintf("<cp:keywords>Watermark:%s</cp:keywords></cp:coreProperties>", watermarkText)),
-					1,
-				)
-				if !bytes.Equal(newContent, coreContent) {
-					coreContent = newContent
-					modified = true
-				}
-			}
-
-			if modified {
-				err = os.WriteFile(corePropsPath, coreContent, 0644)
-				if err != nil {
-					return fmt.Errorf("写入core.xml失败: %w", err)
-				}
-			}
-		}
-	}
-
-	// 添加简单的水印标记到文档内容
-	// 注意：这是一个简化版本，只是在文档中添加一个不可见的标记
-	watermarkTag := fmt.Sprintf("<!-- Watermark: %s -->", watermarkText)
-	if bytes.Contains(docContent, []byte("<w:body>")) {
-		docContent = bytes.Replace(
-			docContent,
-			[]byte("<w:body>"),
-			[]byte(fmt.Sprintf("<w:body>%s", watermarkTag)),
-			1,
-		)
-		err = os.WriteFile(documentPath, docContent, 0644)
-		if err != nil {
-			return fmt.Errorf("写入document.xml失败: %w", err)
-		}
-	}
-
-	// 重新打包DOCX文件
-	err = zipDir(tempDir, outputFile)
-	if err != nil {
-		return fmt.Errorf("重新打包DOCX文件失败: %w", err)
-	}
-
-	return nil
+	return watermark.WriteXMLArchiveMetadata(inputFile, outputFile, []string{"docProps/core.xml", "word/document.xml"}, watermarkText, time.Now().UTC())
 }
 
 // ExtractWatermark 从DOCX文档中提取水印
 func (d *DOCXWatermarker) ExtractWatermark(inputFile string) (string, string, error) {
+	if text, at, found, err := watermark.ReadXMLArchiveMetadata(inputFile, []string{"docProps/core.xml", "word/document.xml"}); err != nil {
+		return "", "", err
+	} else if found {
+		return text, at, nil
+	}
+
 	// 创建临时目录
 	tempDir, err := os.MkdirTemp("", "docx-extract-*")
 	if err != nil {
@@ -128,8 +48,14 @@ func (d *DOCXWatermarker) ExtractWatermark(inputFile string) (string, string, er
 		return "", "", fmt.Errorf("解压DOCX文件失败: %w", err)
 	}
 
-	// 默认时间戳
-	timestamp := time.Now().Format(time.RFC3339)
+	documentPath := filepath.Join(tempDir, "word", "document.xml")
+	docContent, err := os.ReadFile(documentPath)
+	if err != nil {
+		return "", "", fmt.Errorf("读取document.xml失败: %w", err)
+	}
+
+	// Older documents without a recorded timestamp must not report extraction time as creation time.
+	timestamp := ""
 
 	// 首先检查文档属性
 	corePropsPath := filepath.Join(tempDir, "docProps", "core.xml")
@@ -171,11 +97,6 @@ func (d *DOCXWatermarker) ExtractWatermark(inputFile string) (string, string, er
 	}
 
 	// 如果在文档属性中没找到，查找文档内容
-	documentPath := filepath.Join(tempDir, "word", "document.xml")
-	docContent, err := os.ReadFile(documentPath)
-	if err != nil {
-		return "", "", fmt.Errorf("读取document.xml失败: %w", err)
-	}
 
 	// 查找时间戳标记
 	timeStampTagPrefix := "<!-- TimeStamp: "

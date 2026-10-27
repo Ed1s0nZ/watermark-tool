@@ -76,3 +76,9 @@ B已完成，但整体目标仍active。C～G按完整进度板继续，不把�
 新增filebundle独立清单/路径/central预检/复制与CRC模块，先限EOCD与central元数据再调用标准库zip，随后实际字节与CRC二次约束；逻辑路径不拼接物理存储。保留源Unicode和相对目录，随机私有暂存，失败/取消整体删除，原件/已有目录不动。
 
 Go1.26同包race/vet通过，覆盖真实归档与目录、路径/链接/特殊文件/重复和Unicode冲突、元数据超量/加密/ZIP64/截断、CRC与伪造尺寸回滚。证据见c2-bundle-verification.md。下一步接实际格式处理、资源审批与任务/API/UI，C仍进行中。
+
+### C3 真实格式接入前兼容修复
+
+完成 Word/Excel/PPT/ODT 统一有版本 XML 注释，原 ZIP 成员原始复制、特殊文字/真实时间/最终重读核验，内部 ZIP 有界预检/声明签名拒绝；修复 RTF 非法 AES 密钥、正则和尾部 NUL。旧无时间文件返回空，Excel 不输出水印调试日志。兼容元数据不承诺密钥认证/保密；详见 c3-compatibility-verification.md 和 README。
+
+Go1.26 所涉 service/watermark race、服务端完整 race（90.927s）、vet 通过，原平台两个真实浏览器用例通过（29.1s）。这只是 C 的处理器前置修复，目录任务/API/UI仍未交付；接着实现逐文件执行/最终验证和持久任务。

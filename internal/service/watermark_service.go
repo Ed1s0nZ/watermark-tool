@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"mime"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"watermark-tool/internal/filebundle"
 	"watermark-tool/internal/watermark"
 )
 
@@ -75,6 +77,18 @@ func (s *WatermarkService) validateFile(filePath string) error {
 		return ErrFileCorrupted
 	}
 
+	if fileExt == "docx" || fileExt == "xlsx" || fileExt == "pptx" || fileExt == "odt" {
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+		archive, err := filebundle.Open(ctx, filePath, filebundle.OfficeLimits())
+		if err != nil {
+			return fmt.Errorf("%w: %v", ErrFileCorrupted, err)
+		}
+		defer archive.Close()
+		if err = archive.Validate(ctx); err != nil {
+			return fmt.Errorf("%w: %v", ErrFileCorrupted, err)
+		}
+	}
 	return nil
 }
 
@@ -87,7 +101,7 @@ func (s *WatermarkService) validateWatermarkText(text string) error {
 
 	// 检查水印文本长度
 	if len(text) > 100 {
-		return errors.New("水印文本过长，请控制在100个字符以内")
+		return errors.New("水印文本过长，请控制在100字节以内")
 	}
 
 	return nil

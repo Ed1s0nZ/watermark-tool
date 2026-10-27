@@ -6,6 +6,7 @@ import (
 	"crypto/cipher"
 	"crypto/md5"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
 	"errors"
@@ -38,6 +39,11 @@ func (w *RTFWatermarker) GetSupportedType() string {
 
 // AddWatermark 添加水印到RTF文档
 func (w *RTFWatermarker) AddWatermark(inputFile, outputFile, watermarkText string) error {
+	return w.AddWatermarkAt(inputFile, outputFile, watermarkText, time.Now().UTC())
+}
+
+// AddWatermarkAt records the server-selected creation time for immutable file tasks.
+func (w *RTFWatermarker) AddWatermarkAt(inputFile, outputFile, watermarkText string, at time.Time) error {
 	// 检查输入文件是否存在
 	if _, err := os.Stat(inputFile); os.IsNotExist(err) {
 		return fmt.Errorf("输入文件不存在: %s", inputFile)
@@ -55,7 +61,7 @@ func (w *RTFWatermarker) AddWatermark(inputFile, outputFile, watermarkText strin
 	}
 
 	// 准备水印数据
-	watermarkData, err := prepareWatermarkData(watermarkText)
+	watermarkData, err := prepareWatermarkData(watermarkText, at)
 	if err != nil {
 		return fmt.Errorf("准备水印数据失败: %w", err)
 	}
@@ -68,7 +74,7 @@ func (w *RTFWatermarker) AddWatermark(inputFile, outputFile, watermarkText strin
 	if match != nil {
 		// 在info块之后插入我们的水印注释
 		insertPos := match[1]
-		modifiedContent = make([]byte, len(fileContent)+len(watermarkData)+2)
+		modifiedContent = make([]byte, len(fileContent)+len(watermarkData))
 		copy(modifiedContent, fileContent[:insertPos])
 		copy(modifiedContent[insertPos:], []byte(watermarkData))
 		copy(modifiedContent[insertPos+len(watermarkData):], fileContent[insertPos:])
@@ -83,7 +89,7 @@ func (w *RTFWatermarker) AddWatermark(inputFile, outputFile, watermarkText strin
 			headerEnd = len("{\\rtf1")
 		}
 
-		modifiedContent = make([]byte, len(fileContent)+len(watermarkData)+2)
+		modifiedContent = make([]byte, len(fileContent)+len(watermarkData))
 		copy(modifiedContent, fileContent[:headerEnd])
 		copy(modifiedContent[headerEnd:], []byte(watermarkData))
 		copy(modifiedContent[headerEnd+len(watermarkData):], fileContent[headerEnd:])
@@ -117,7 +123,7 @@ func (w *RTFWatermarker) ExtractWatermark(inputFile string) (string, string, err
 	}
 
 	// 查找水印数据
-	re := regexp.MustCompile(`\{\\*\\watermark-data timestamp="(\d+)" checksum="([a-f0-9]+)"\\watermark-content ([A-Za-z0-9+/=]+)\\watermark-end\}`)
+	re := regexp.MustCompile(`\{\\\*\\watermark-data timestamp="(\d+)" checksum="([a-f0-9]+)"\\watermark-content ([A-Za-z0-9+/=]+)\\watermark-end\}`)
 	matches := re.FindSubmatch(fileContent)
 
 	if matches == nil || len(matches) < 4 {
@@ -150,7 +156,7 @@ func (w *RTFWatermarker) ExtractWatermark(inputFile string) (string, string, err
 }
 
 // prepareWatermarkData 准备用于插入RTF文档的水印数据
-func prepareWatermarkData(watermarkText string) (string, error) {
+func prepareWatermarkData(watermarkText string, at time.Time) (string, error) {
 	// 加密水印文本
 	encryptedText, err := encryptWatermark(watermarkText)
 	if err != nil {
@@ -163,7 +169,7 @@ func prepareWatermarkData(watermarkText string) (string, error) {
 	// 格式化为RTF注释格式
 	// 在RTF中，{\\*\\注释内容}表示特殊字段或隐藏内容
 	return fmt.Sprintf("{\\*\\watermark-data timestamp=\"%d\" checksum=\"%s\"\\watermark-content %s\\watermark-end}",
-		time.Now().Unix(),
+		at.Unix(),
 		checksum,
 		encryptedText), nil
 }
@@ -171,11 +177,11 @@ func prepareWatermarkData(watermarkText string) (string, error) {
 // 加密水印文本
 func encryptWatermark(text string) (string, error) {
 	// 定义密钥（实际应用中应从安全来源获取）
-	key := []byte("watermark-security-key-for-encryption")
+	key := sha256.Sum256([]byte("watermark-security-key-for-encryption"))
 	plaintext := []byte(text)
 
 	// 创建一个新的AES加密块
-	block, err := aes.NewCipher(key)
+	block, err := aes.NewCipher(key[:])
 	if err != nil {
 		return "", err
 	}
@@ -202,7 +208,7 @@ func encryptWatermark(text string) (string, error) {
 // 解密水印文本
 func decryptWatermark(encryptedText string) (string, error) {
 	// 定义密钥（必须与加密时使用的相同）
-	key := []byte("watermark-security-key-for-encryption")
+	key := sha256.Sum256([]byte("watermark-security-key-for-encryption"))
 
 	// 解码base64字符串
 	ciphertext, err := base64.StdEncoding.DecodeString(encryptedText)
@@ -211,7 +217,7 @@ func decryptWatermark(encryptedText string) (string, error) {
 	}
 
 	// 创建一个新的AES加密块
-	block, err := aes.NewCipher(key)
+	block, err := aes.NewCipher(key[:])
 	if err != nil {
 		return "", err
 	}

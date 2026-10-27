@@ -23,111 +23,17 @@ func init() {
 
 // AddWatermark 为PowerPoint添加水印
 func (p *PPTXWatermarker) AddWatermark(inputFile, outputFile, watermarkText string) error {
-	// 创建临时目录
-	tempDir, err := os.MkdirTemp("", "pptx-watermark-*")
-	if err != nil {
-		return fmt.Errorf("创建临时目录失败: %w", err)
-	}
-	defer os.RemoveAll(tempDir)
-
-	// 解压PPTX文件
-	err = unzipFile(inputFile, tempDir)
-	if err != nil {
-		return fmt.Errorf("解压PPTX文件失败: %w", err)
-	}
-
-	// 添加水印到元数据
-	// 修改core.xml添加水印信息
-	corePropsPath := filepath.Join(tempDir, "docProps", "core.xml")
-	if _, err := os.Stat(corePropsPath); err == nil {
-		coreContent, err := os.ReadFile(corePropsPath)
-		if err == nil {
-			// 添加水印到关键词
-			modified := false
-			if bytes.Contains(coreContent, []byte("<cp:keywords>")) {
-				newContent := bytes.Replace(
-					coreContent,
-					[]byte("<cp:keywords>"),
-					[]byte(fmt.Sprintf("<cp:keywords>Watermark:%s ", watermarkText)),
-					1,
-				)
-				if !bytes.Equal(newContent, coreContent) {
-					coreContent = newContent
-					modified = true
-				}
-			} else if bytes.Contains(coreContent, []byte("</cp:coreProperties>")) {
-				// 如果没有关键词标签，添加一个
-				newContent := bytes.Replace(
-					coreContent,
-					[]byte("</cp:coreProperties>"),
-					[]byte(fmt.Sprintf("<cp:keywords>Watermark:%s</cp:keywords></cp:coreProperties>", watermarkText)),
-					1,
-				)
-				if !bytes.Equal(newContent, coreContent) {
-					coreContent = newContent
-					modified = true
-				}
-			}
-
-			if modified {
-				err = os.WriteFile(corePropsPath, coreContent, 0644)
-				if err != nil {
-					return fmt.Errorf("写入core.xml失败: %w", err)
-				}
-			}
-		}
-	}
-
-	// 在每个幻灯片中添加水印
-	// 查找所有幻灯片文件
-	slidesDir := filepath.Join(tempDir, "ppt", "slides")
-	if _, err := os.Stat(slidesDir); err == nil {
-		files, err := os.ReadDir(slidesDir)
-		if err == nil {
-			for _, file := range files {
-				if !file.IsDir() && strings.HasPrefix(file.Name(), "slide") && strings.HasSuffix(file.Name(), ".xml") {
-					slidePath := filepath.Join(slidesDir, file.Name())
-
-					// 读取幻灯片内容
-					slideContent, err := os.ReadFile(slidePath)
-					if err != nil {
-						continue
-					}
-
-					// 在幻灯片末尾添加水印注释
-					watermarkComment := fmt.Sprintf("<!-- Watermark: %s -->", watermarkText)
-					if !bytes.Contains(slideContent, []byte(watermarkComment)) {
-						endTagPos := bytes.LastIndex(slideContent, []byte("</p:sld>"))
-						if endTagPos > 0 {
-							newContent := append(
-								slideContent[:endTagPos],
-								append(
-									[]byte(watermarkComment),
-									slideContent[endTagPos:]...,
-								)...,
-							)
-							err = os.WriteFile(slidePath, newContent, 0644)
-							if err != nil {
-								return fmt.Errorf("写入幻灯片水印失败: %w", err)
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// 重新打包PPTX文件
-	err = zipDir(tempDir, outputFile)
-	if err != nil {
-		return fmt.Errorf("重新打包PPTX文件失败: %w", err)
-	}
-
-	return nil
+	return watermark.WriteXMLArchiveMetadata(inputFile, outputFile, []string{"docProps/core.xml", "ppt/presentation.xml"}, watermarkText, time.Now().UTC())
 }
 
 // ExtractWatermark 从PPTX文档中提取水印
 func (p *PPTXWatermarker) ExtractWatermark(inputFile string) (string, string, error) {
+	if text, at, found, err := watermark.ReadXMLArchiveMetadata(inputFile, []string{"docProps/core.xml", "ppt/presentation.xml"}); err != nil {
+		return "", "", err
+	} else if found {
+		return text, at, nil
+	}
+
 	// 创建临时目录
 	tempDir, err := os.MkdirTemp("", "pptx-extract-*")
 	if err != nil {
@@ -141,8 +47,7 @@ func (p *PPTXWatermarker) ExtractWatermark(inputFile string) (string, string, er
 		return "", "", fmt.Errorf("解压PPTX文件失败: %w", err)
 	}
 
-	// 默认时间戳
-	timestamp := time.Now().Format(time.RFC3339)
+	timestamp := ""
 
 	// 首先检查文档属性
 	corePropsPath := filepath.Join(tempDir, "docProps", "core.xml")
