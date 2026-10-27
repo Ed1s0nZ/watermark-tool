@@ -54,6 +54,37 @@ test("two source sizes, three recipients: pinned logo/regions, six real JPEG cop
   await page
     .getByRole("menuitem", { name: "多图分发任务", exact: true })
     .click();
+  await page.evaluate(() =>
+    localStorage.setItem(
+      "watermark.policies.v1",
+      JSON.stringify({
+        version: 1,
+        items: [
+          {
+            id: crypto.randomUUID(),
+            name: "Legacy v1",
+            mode: "dual",
+            template: "{name}",
+            style: {
+              mode: "single",
+              position: "bottomRight",
+              size: 28,
+              opacity: 0.35,
+              color: "#365bdb",
+              angle: -30,
+            },
+            quality: {},
+          },
+        ],
+      }),
+    ),
+  );
+  await page.reload();
+  await choose(page, "选择策略", "Legacy v1");
+  await page
+    .getByRole("button", { name: "明确应用所选策略", exact: true })
+    .click();
+
   await page.getByLabel("任务原图", { exact: true }).setInputFiles([
     { name: "one.png", mimeType: "image/png", buffer: original },
     { name: "two.png", mimeType: "image/png", buffer: second },
@@ -80,8 +111,10 @@ test("two source sizes, three recipients: pinned logo/regions, six real JPEG cop
   await drawRegion(page, 0.05, 0.05, 0.2, 0.2);
   await page.getByLabel("策略名称", { exact: true }).fill("Brand JPEG");
   await page.getByRole("button", { name: "保存为新策略", exact: true }).click();
-  const policy = await page.evaluate(
-    () => JSON.parse(localStorage.getItem("watermark.policies.v1")!).items[0],
+  const policy = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("watermark.policies.v1")!).items.find(
+      (p: { name: string }) => p.name === "Brand JPEG",
+    ),
   );
   expect(policy.layout.layers).toBe("both");
   expect(policy.output).toEqual({ format: "jpeg", jpeg_quality: 90 });
@@ -137,8 +170,34 @@ test("two source sizes, three recipients: pinned logo/regions, six real JPEG cop
     expect(copy.quality.final.status).toBe("finite");
   }
   await page.getByRole("button", { name: "载入任务参数", exact: true }).click();
+  expect(
+    await page
+      .getByLabel("Logo文件", { exact: true })
+      .evaluate((e: HTMLInputElement) => e.files?.length),
+  ).toBe(0);
+  await page
+    .getByLabel("Logo文件", { exact: true })
+    .setInputFiles({
+      name: "wrong-logo.png",
+      mimeType: "image/png",
+      buffer: original,
+    });
+  await page.getByRole("button", { name: "校验并预览", exact: true }).click();
   await expect(
-    page.getByText(new RegExp("恢复Logo摘要: "+created.artwork.logo.sha256)),
+    page.getByText("恢复任务需要相同Logo，请核对摘要并重新选择。", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page
+    .getByLabel("Logo文件", { exact: true })
+    .setInputFiles({ name: "logo.png", mimeType: "image/png", buffer: logo });
+  await page.getByRole("button", { name: "校验并预览", exact: true }).click();
+  await expect(
+    page.getByRole("img", { name: "任务副本预览", exact: true }),
+  ).toBeVisible();
+
+  await expect(
+    page.getByText(new RegExp("恢复Logo摘要: " + created.artwork.logo.sha256)),
   ).toBeVisible();
   await page.screenshot({
     path: info.outputPath("jpeg-job-snapshot.png"),

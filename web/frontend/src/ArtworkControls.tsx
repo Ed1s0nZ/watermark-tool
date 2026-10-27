@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { Form, InputNumber, Select, Space, Typography } from "antd";
 import { ArtworkState, positions } from "./artwork";
 import { useArtText } from "./artText";
@@ -11,6 +12,10 @@ export function ArtworkControls({
   disabled?: boolean;
 }) {
   const t = useArtText();
+  const input = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    if (!value.logoFile && input.current) input.current.value = "";
+  }, [value.logoFile]);
   return (
     <>
       <Form.Item label={t.layers}>
@@ -30,6 +35,7 @@ export function ArtworkControls({
         <>
           <Form.Item label={t.logoFile} extra={t.logoHint}>
             <input
+              ref={input}
               aria-label={t.logoFile}
               type="file"
               accept=".png,.jpg,.jpeg"

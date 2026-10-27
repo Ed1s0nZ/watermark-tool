@@ -20,13 +20,11 @@ test("transparent logo, exact visible exclusions, touch editor and JPEG final ve
   const rawHash = createHash("sha256").update(original).digest("hex"),
     logoHash = createHash("sha256").update(logo).digest("hex");
   await page.getByRole("menuitem", { name: "双水印模板", exact: true }).click();
-  await page
-    .getByLabel("双水印原图", { exact: true })
-    .setInputFiles({
-      name: "source.png",
-      mimeType: "image/png",
-      buffer: original,
-    });
+  await page.getByLabel("双水印原图", { exact: true }).setInputFiles({
+    name: "source.png",
+    mimeType: "image/png",
+    buffer: original,
+  });
   await page.getByLabel("隐形载荷", { exact: true }).fill("Logo-verified");
   await choose(page, "可见层组合", "仅Logo");
   await page
@@ -124,6 +122,41 @@ test("transparent logo, exact visible exclusions, touch editor and JPEG final ve
     fullPage: true,
     animations: "disabled",
   });
+  await choose(page, "样式", "平铺");
+  await page.getByRole("button", { name: "生成预览", exact: true }).click();
+  await expect(
+    page.getByRole("img", { name: "生成预览", exact: true }),
+  ).toBeVisible();
+  await choose(page, "样式", "单处");
+  await page
+    .getByLabel("Logo文件", { exact: true })
+    .setInputFiles({
+      name: "broken.png",
+      mimeType: "image/png",
+      buffer: Buffer.from("broken"),
+    });
+  await page.getByRole("button", { name: "生成预览", exact: true }).click();
+  await expect(
+    page.getByText("Logo、布局或区域无效，请检查尺寸、透明度和矩形范围。", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page
+    .getByLabel("Logo文件", { exact: true })
+    .setInputFiles({
+      name: "large.png",
+      mimeType: "image/png",
+      buffer: Buffer.alloc(5 * 1024 * 1024 + 1),
+    });
+  await page.getByRole("button", { name: "生成预览", exact: true }).click();
+  await expect(
+    page.getByText("Logo、布局或区域无效，请检查尺寸、透明度和矩形范围。", {
+      exact: true,
+    }),
+  ).toBeVisible();
+  await page
+    .getByLabel("Logo文件", { exact: true })
+    .setInputFiles({ name: "logo.png", mimeType: "image/png", buffer: logo });
   // Full-image exclusion rejects before any task/output is created.
   await page.getByRole("button", { name: "清空本图区域", exact: true }).click();
   await drawRegion(page, 0.01, 0.01, 0.98, 0.98);
@@ -181,6 +214,13 @@ test("transparent logo, exact visible exclusions, touch editor and JPEG final ve
     fullPage: true,
     animations: "disabled",
   });
+  for (let i = 0; i < 8; i++) await drawRegion(page, 0.1, 0.1, 0.03, 0.03);
+  await expect(
+    page.getByRole("spinbutton", { name: "区域 8 x %", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("spinbutton", { name: "区域 9 x %", exact: true }),
+  ).toHaveCount(0);
   await page.getByRole("button", { name: "清空本图区域", exact: true }).click();
   expect(createHash("sha256").update(original).digest("hex")).toBe(rawHash);
   expect(createHash("sha256").update(logo).digest("hex")).toBe(logoHash);

@@ -5,10 +5,12 @@ import (
 	"bytes"
 	"encoding/csv"
 	"encoding/json"
+	"errors"
 	"image/jpeg"
 	"io"
 	"strings"
 	"testing"
+	"watermark-tool/internal/composition"
 	"watermark-tool/internal/distribution"
 	"watermark-tool/internal/output"
 	"watermark-tool/internal/quality"
@@ -116,4 +118,74 @@ func findJPEG(t *testing.T, z *zip.Reader, name string) []byte {
 	}
 	t.Fatal(name)
 	return nil
+}
+
+func TestJPEGArtworkInterruptedRecovery(t *testing.T) {
+	s, m, dir, slots := setup(t)
+	paths, sources := images(t)
+	sources = sources[:1]
+	art := &composition.Artwork{Layers: "logo", Logo: &composition.Logo{SHA256: strings.Repeat("b", 64), Position: "topRight", WidthRatio: 0.15, Opacity: 0.35}, Exclusions: map[string][]composition.Rect{sources[0].SHA256: {{X: 0.7, Y: 0.7, Width: 0.2, Height: 0.2}}}}
+	options := distribution.JobOptions{Output: &output.Options{Format: "jpeg", JPEGQuality: 90}, Artwork: art}
+	style := map[string]any{"mode": "single", "position": "bottomRight", "size": 28, "opacity": 0.35, "color": "#365bdb", "angle": -30}
+	j, e := s.NewJobWithOptions("jpeg-artwork-recover", "admin", sources, []distribution.Recipient{{ID: "1", Name: "A"}}, "dual", "", style, options, quality.Policy{})
+	if e != nil {
+		t.Fatal(e)
+	}
+	if _, e = m.Upload(j.ID, j.Sources[0].ID, "", paths[0], j.UploadToken); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = m.Upload(j.ID, j.Sources[0].ID, j.Copies[0].ID, paths[0], j.UploadToken); e != nil {
+		t.Fatal(e)
+	}
+	slots <- struct{}{}
+	slots <- struct{}{}
+	if _, e = m.Start(j.ID, "admin", false); e != nil {
+		t.Fatal(e)
+	}
+	m.Close()
+	<-slots
+	<-slots
+	s.Close()
+	s, e = distribution.Open(dir, master, legacy)
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer s.Close()
+	m, e = New(s, slots)
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer m.Close()
+	recovered, e := m.View(j.ID)
+	if e != nil || recovered.Status != "interrupted" || recovered.UploadToken == j.UploadToken || recovered.Output.JPEGQuality != 90 || recovered.Artwork.Logo.SHA256 != art.Logo.SHA256 || recovered.Copies[0].ID != j.Copies[0].ID {
+		t.Fatal(recovered, e)
+	}
+	art.Logo.SHA256 = strings.Repeat("c", 64)
+	if _, e = s.NewJobWithOptions("jpeg-artwork-recover", "admin", sources, []distribution.Recipient{{ID: "1", Name: "A"}}, "dual", "", style, options, quality.Policy{}); !errors.Is(e, distribution.ErrConflict) {
+		t.Fatal("wrong logo snapshot", e)
+	}
+	art.Logo.SHA256 = recovered.Artwork.Logo.SHA256
+	art.Exclusions[sources[0].SHA256][0].X = 0.6
+	if _, e = s.NewJobWithOptions("jpeg-artwork-recover", "admin", sources, []distribution.Recipient{{ID: "1", Name: "A"}}, "dual", "", style, options, quality.Policy{}); !errors.Is(e, distribution.ErrConflict) {
+		t.Fatal("wrong region snapshot", e)
+	}
+	if _, e = m.Upload(j.ID, recovered.Sources[0].ID, "", paths[1], recovered.UploadToken); !errors.Is(e, distribution.ErrConflict) {
+		t.Fatal("wrong raw", e)
+	}
+	if _, e = m.Upload(j.ID, recovered.Sources[0].ID, recovered.Copies[0].ID, paths[1], recovered.UploadToken); !errors.Is(e, distribution.ErrConflict) {
+		t.Fatal("wrong rendered", e)
+	}
+	if _, e = m.Upload(j.ID, recovered.Sources[0].ID, "", paths[0], recovered.UploadToken); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = m.Upload(j.ID, recovered.Sources[0].ID, recovered.Copies[0].ID, paths[0], recovered.UploadToken); e != nil {
+		t.Fatal(e)
+	}
+	if _, e = m.Start(j.ID, "admin", true); e != nil {
+		t.Fatal(e)
+	}
+	done := waitJob(t, m, j.ID, "completed")
+	if done.Copies[0].ID != j.Copies[0].ID || done.CreatedAt != j.CreatedAt || done.Output.JPEGQuality != 90 || done.Copies[0].Quality.Format != "jpeg" {
+		t.Fatal(done)
+	}
 }

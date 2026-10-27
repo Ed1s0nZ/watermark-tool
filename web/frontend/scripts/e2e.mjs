@@ -23,7 +23,14 @@ const suites =
       ];
 try {
   for (const [index, suite] of suites.entries()) {
-    const run = spawnSync(process.execPath, [cli, "test", ...suite], {
+    // Playwright treats file arguments as regular expressions. Match whole basenames,
+    // so jobs.spec.ts cannot also run jpeg-jobs.spec.ts in the same rate window.
+    const selected = suite.map((name) =>
+      /^[\w-]+\.spec\.ts$/.test(name)
+        ? `(^|/)${name.replaceAll(".", "\\.")}$`
+        : name,
+    );
+    const run = spawnSync(process.execPath, [cli, "test", ...selected], {
       stdio: "inherit",
       env: {
         ...process.env,

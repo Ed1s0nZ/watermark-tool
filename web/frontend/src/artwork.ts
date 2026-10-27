@@ -93,7 +93,9 @@ export function describe(file: File) {
           b.toString(16).padStart(2, "0"),
         ).join(""),
       };
-    })();
+    })().catch(() => {
+      throw Error("artwork_invalid");
+    });
     descriptions.set(file, p);
   }
   return p;
@@ -151,6 +153,13 @@ function point(
           : 12 + ih / 2,
   };
 }
+async function decodeBitmap(file: File) {
+  try {
+    return await createImageBitmap(file);
+  } catch {
+    throw Error("artwork_invalid");
+  }
+}
 export async function renderArtwork(
   file: File,
   text: string,
@@ -162,7 +171,7 @@ export async function renderArtwork(
   if (!art) return renderVisible(file, text, style);
   const w = info.width,
     h = info.height;
-  const bitmap = await createImageBitmap(file);
+  const bitmap = await decodeBitmap(file);
   let logo: ImageBitmap | undefined;
   try {
     if (bitmap.width !== w || bitmap.height !== h)
@@ -260,7 +269,7 @@ export async function renderArtwork(
       if (!count) throw Error("artwork_blocked");
     }
     if (art.logo) {
-      logo = await createImageBitmap(state.logoFile!);
+      logo = await decodeBitmap(state.logoFile!);
       const test = document.createElement("canvas");
       test.width = logo.width;
       test.height = logo.height;

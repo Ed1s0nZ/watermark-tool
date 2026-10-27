@@ -31,7 +31,7 @@ import {
 } from "@ant-design/icons";
 import { RecordOrigin } from "./RecordOrigin";
 import { ReportVerifier } from "./Reports";
-import { api } from "./api";
+import { api, APIError } from "./api";
 import { useText } from "./i18n";
 import type { CopyRecord } from "./platform";
 import { ErrorNotice } from "./ErrorNotice";
