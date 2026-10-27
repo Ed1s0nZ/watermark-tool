@@ -26,10 +26,10 @@ func (s *Store) ObserveJobQuality(id, copyID string, value quality.Summary) erro
 			if j.QualityPolicy != nil {
 				p = *j.QualityPolicy
 			}
-			if value.Accepted != p.Accept(value.Embedding) {
+			if value.Accepted != (value.Verified && p.Accept(value.GateMetric())) {
 				return ErrJobState
 			}
-			j.Copies[n].Quality = &value
+			j.Copies[n].Quality = quality.CloneSummary(&value)
 			return nil
 		}
 	}

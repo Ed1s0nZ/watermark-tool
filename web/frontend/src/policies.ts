@@ -1,6 +1,10 @@
+import { Layout, validLayout } from "./artwork";
+import { OutputOptions, validOutput } from "./OutputFields";
 import { defaultStyle, validStyle, Style } from "./visibleWatermark";
 import { validQuality, QualityPolicy } from "./quality";
 export interface PolicyValue {
+  layout?: Layout;
+  output?: OutputOptions;
   mode: "blind" | "dual";
   template: string;
   style: Style;
@@ -17,16 +21,26 @@ export function validPolicy(v: unknown): v is PolicyValue {
   if (!v || typeof v !== "object" || Array.isArray(v)) return false;
   const p = v as PolicyValue;
   if (
-    !keys(p, ["mode", "template", "style", "quality"]) ||
+    !Object.keys(p).every((k) =>
+      ["mode", "template", "style", "quality", "layout", "output"].includes(k),
+    ) ||
+    !["mode", "template", "style", "quality"].every((k) =>
+      Object.hasOwn(p, k),
+    ) ||
     !["blind", "dual"].includes(p.mode) ||
     typeof p.template !== "string" ||
     Array.from(p.template).length > 80 ||
-    !p.template.trim() ||
+    (!p.template.trim() && p.layout?.layers !== "logo") ||
     /[{}]/.test(p.template.replace(/\{(name|recipient_id)\}/g, "")) ||
     /[\p{Cc}\p{Cf}]/u.test(p.template)
   )
     return false;
-  return validStyle(p.style) && validQuality(p.quality);
+  return (
+    validStyle(p.style) &&
+    validQuality(p.quality) &&
+    (p.layout === undefined || validLayout(p.layout)) &&
+    (p.output === undefined || validOutput(p.output))
+  );
 }
 export function loadPolicies(): Preset[] {
   const raw = localStorage.getItem(policyKey);
@@ -46,7 +60,18 @@ export function loadPolicies(): Preset[] {
     if (
       !p ||
       typeof p !== "object" ||
-      !keys(p, ["id", "name", "mode", "template", "style", "quality"]) ||
+      !Object.keys(p).every((k) =>
+        [
+          "id",
+          "name",
+          "mode",
+          "template",
+          "style",
+          "quality",
+          "layout",
+          "output",
+        ].includes(k),
+      ) ||
       typeof p.id !== "string" ||
       !/^[a-f0-9-]{36}$/.test(p.id) ||
       typeof p.name !== "string" ||

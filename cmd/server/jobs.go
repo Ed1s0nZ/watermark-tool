@@ -7,8 +7,10 @@ import (
 	"strconv"
 	"sync"
 	"time"
+	"watermark-tool/internal/composition"
 	"watermark-tool/internal/delivery"
 	"watermark-tool/internal/distribution"
+	"watermark-tool/internal/output"
 	"watermark-tool/internal/quality"
 	"watermark-tool/internal/service"
 )
@@ -38,17 +40,27 @@ func registerJobs(api *gin.RouterGroup, store *distribution.Store, manager *deli
 	})
 	group.POST("/preview-plan", func(c *gin.Context) {
 		var request struct {
-			Quality *quality.Policy `json:"quality_policy"`
-			CSV     string          `json:"recipients_csv"`
-			Mode    string          `json:"mode"`
-			Text    string          `json:"template_text"`
-			Style   map[string]any  `json:"style"`
+			Output  *output.Options      `json:"output"`
+			Artwork *composition.Artwork `json:"artwork"`
+			Quality *quality.Policy      `json:"quality_policy"`
+			CSV     string               `json:"recipients_csv"`
+			Mode    string               `json:"mode"`
+			Text    string               `json:"template_text"`
+			Style   map[string]any       `json:"style"`
 		}
 		if !boundedJSON(c, &request, 32<<10) {
 			return
 		}
 		if request.Quality != nil && !request.Quality.Valid() {
 			platformError(c, quality.ErrPolicy)
+			return
+		}
+		if _, err := output.Normalize(request.Output); err != nil {
+			platformError(c, err)
+			return
+		}
+		if !composition.Validate(request.Artwork, nil) || request.Mode == "blind" && request.Artwork != nil {
+			platformError(c, composition.ErrArtwork)
 			return
 		}
 		recipients, err := distribution.ParseRecipients(request.CSV)
@@ -66,6 +78,9 @@ func registerJobs(api *gin.RouterGroup, store *distribution.Store, manager *deli
 				return
 			}
 			for _, r := range recipients {
+				if !composition.Text(request.Artwork) {
+					continue
+				}
 				if _, err = distribution.VisibleText(request.Text, r); err != nil {
 					platformError(c, err)
 					return
@@ -81,6 +96,8 @@ func registerJobs(api *gin.RouterGroup, store *distribution.Store, manager *deli
 			return
 		}
 		var request struct {
+			Output  *output.Options          `json:"output"`
+			Artwork *composition.Artwork     `json:"artwork"`
 			Quality *quality.Policy          `json:"quality_policy"`
 			Sources []distribution.JobSource `json:"sources"`
 			CSV     string                   `json:"recipients_csv"`
@@ -95,6 +112,14 @@ func registerJobs(api *gin.RouterGroup, store *distribution.Store, manager *deli
 			platformError(c, quality.ErrPolicy)
 			return
 		}
+		if _, err := output.Normalize(request.Output); err != nil {
+			platformError(c, err)
+			return
+		}
+		if !composition.Validate(request.Artwork, nil) || request.Mode == "blind" && request.Artwork != nil {
+			platformError(c, composition.ErrArtwork)
+			return
+		}
 		recipients, err := distribution.ParseRecipients(request.CSV)
 		if err != nil {
 			platformError(c, err)
@@ -104,7 +129,7 @@ func registerJobs(api *gin.RouterGroup, store *distribution.Store, manager *deli
 		if request.Quality != nil {
 			policies = append(policies, *request.Quality)
 		}
-		job, err := store.NewJob(c.GetHeader("Idempotency-Key"), c.GetString("username"), request.Sources, recipients, request.Mode, request.Text, request.Style, policies...)
+		job, err := store.NewJobWithOptions(c.GetHeader("Idempotency-Key"), c.GetString("username"), request.Sources, recipients, request.Mode, request.Text, request.Style, distribution.JobOptions{Output: request.Output, Artwork: request.Artwork}, policies...)
 		if err != nil {
 			platformError(c, err)
 			return

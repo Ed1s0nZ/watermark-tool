@@ -1,3 +1,11 @@
+import {
+  Artwork,
+  ArtworkState,
+  emptyArtwork,
+  metadata,
+  renderArtwork,
+} from "./artwork";
+import { OutputOptions, normalizedOutput } from "./OutputFields";
 import { Quality, QualityPolicy } from "./quality";
 import { api, APIError } from "./api";
 import { dimensions, renderVisible, Style } from "./visibleWatermark";
@@ -22,6 +30,8 @@ export interface JobCopy extends Recipient {
   input_uploaded: boolean;
 }
 export interface DeliveryJob {
+  output?: OutputOptions;
+  artwork?: Artwork;
   quality_policy?: QualityPolicy;
   id: string;
   upload_token: string;
@@ -52,6 +62,8 @@ interface SourceInfo {
   height: number;
 }
 export interface Plan {
+  output: OutputOptions;
+  artwork?: Artwork;
   quality: QualityPolicy;
   sources: SourceInfo[];
   recipients: Recipient[];
@@ -134,6 +146,8 @@ export async function prepare(
   signal: AbortSignal,
   progress: (done: number, total: number) => void,
   quality: QualityPolicy = {},
+  artworkState: ArtworkState = emptyArtwork(),
+  output: OutputOptions = { format: "png" },
 ): Promise<Plan> {
   if (
     !files.length ||
@@ -148,6 +162,13 @@ export async function prepare(
   }
   if (new Set(sources.map((s) => s.source_sha256)).size !== sources.length)
     throw new APIError(422, "job_invalid");
+  const artwork =
+    mode === "dual"
+      ? await metadata(
+          artworkState,
+          sources.map((s) => s.source_sha256),
+        )
+      : undefined;
   const result = await post<{ recipients: Recipient[] }>(
     "/jobs/preview-plan",
     {
@@ -156,6 +177,8 @@ export async function prepare(
       template_text: template,
       style,
       quality_policy: quality,
+      artwork,
+      output,
     },
     signal,
   );
@@ -163,15 +186,20 @@ export async function prepare(
   const renders = new Map<string, Blob>();
   const total = sources.length * result.recipients.length;
   let done = 0;
-  let size = files.reduce((sum, f) => sum + f.size, 0);
+  let size =
+    files.reduce((sum, f) => sum + f.size, 0) +
+    (mode === "dual" && artworkState.layers !== "text"
+      ? (artworkState.logoFile?.size ?? 0)
+      : 0);
   for (const source of sources)
     for (const recipient of result.recipients) {
       alive(signal);
       if (mode === "dual") {
-        const blob = await renderVisible(
+        const blob = await renderArtwork(
           source.file,
           substitute(template, recipient),
           style,
+          artworkState,
         );
         alive(signal);
         size += blob.size;
@@ -181,6 +209,8 @@ export async function prepare(
       progress(++done, total);
     }
   return {
+    output: normalizedOutput(output),
+    artwork,
     quality: { ...quality },
     sources,
     recipients: result.recipients,
@@ -207,15 +237,33 @@ export async function createJob(
         template_text: plan.template,
         style: plan.style,
         quality_policy: plan.quality,
+        artwork: plan.artwork,
+        output: plan.output,
       }),
       signal,
     })
   ).json();
 }
+function canonical(value: unknown): string {
+  const sort = (v: unknown): unknown =>
+    Array.isArray(v)
+      ? v.map(sort)
+      : v && typeof v === "object"
+        ? Object.fromEntries(
+            Object.entries(v)
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([k, n]) => [k, sort(n)]),
+          )
+        : v;
+  return JSON.stringify(sort(value));
+}
 export function matchesPlan(plan: Plan, job: DeliveryJob) {
   const recipients = new Map(job.copies.map((r) => [r.recipient_id, r.name]));
   return (
     plan.mode === job.mode &&
+    JSON.stringify(normalizedOutput(plan.output)) ===
+      JSON.stringify(normalizedOutput(job.output)) &&
+    canonical(plan.artwork ?? null) === canonical(job.artwork ?? null) &&
     plan.quality.minimum_psnr_db === job.quality_policy?.minimum_psnr_db &&
     plan.sources.length === job.sources.length &&
     job.sources.every((s) =>

@@ -10,8 +10,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"watermark-tool/internal/blind"
+	"watermark-tool/internal/composition"
 	"watermark-tool/internal/delivery"
 	"watermark-tool/internal/distribution"
+	"watermark-tool/internal/output"
 	"watermark-tool/internal/quality"
 )
 
@@ -36,6 +38,12 @@ func openPlatform() (*distribution.Store, error) {
 func platformError(c *gin.Context, err error) {
 	status, code := 500, "requestError"
 	switch {
+	case errors.Is(err, output.ErrOptions):
+		status, code = 422, "output_options"
+	case errors.Is(err, output.ErrVerification):
+		status, code = 422, "output_verification"
+	case errors.Is(err, composition.ErrArtwork):
+		status, code = 422, "artwork_invalid"
 	case errors.Is(err, quality.ErrPolicy):
 		status, code = 422, "quality_policy"
 	case errors.Is(err, quality.ErrThreshold):

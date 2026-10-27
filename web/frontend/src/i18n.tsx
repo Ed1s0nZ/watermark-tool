@@ -1,7 +1,13 @@
 import { createContext, useContext } from "react";
 export const zh = {
+  output_options: "输出参数无效：PNG或JPEG，JPEG质量60～100。",
+  output_verification:
+    "最终编码文件的隐形水印验证失败，未交付成品；请查看摘要，明确调整选项后重试或新建任务。",
+  artwork_invalid: "Logo或区域无效：请检查5MiB/200万像素限制、布局和矩形范围。",
+  artwork_blocked: "没有可用的完整可见水印位置，请缩小水印或调整避让区域。",
+  artwork_logo_mismatch: "恢复任务需要相同Logo，请核对摘要并重新选择。",
   quality_failed:
-    "隐形嵌入PSNR低于启用的门槛，未交付成品；请查看质量摘要，调整策略后创建新任务。",
+    "最终成品PSNR低于启用的门槛，未交付成品；请查看质量摘要，调整策略后创建新任务。",
   quality_policy: "质量策略无效，最低PSNR须为20～60dB。",
   trace_limit: "批量溯源最多20张，每张50MiB，总量128MiB。",
   trace_service_error: "验证服务异常，本批已停止；未执行项目不是未检出。",
@@ -215,8 +221,17 @@ export const zh = {
 };
 export type Dictionary = Record<keyof typeof zh, string>;
 export const en: Dictionary = {
+  output_options: "Invalid output options: PNG or JPEG, JPEG quality 60–100.",
+  output_verification:
+    "Final encoded file did not verify; output withheld. Review the summary and explicitly adjust options for a new attempt.",
+  artwork_invalid:
+    "Invalid logo or regions. Check 5MiB/2MP limits, layout and rectangle bounds.",
+  artwork_blocked:
+    "No complete visible watermark instance fits. Reduce size or adjust exclusion regions.",
+  artwork_logo_mismatch:
+    "Retry requires the same logo. Check the digest and select again.",
   quality_failed:
-    "Embedding PSNR is below the enabled threshold; output withheld. Review quality and create a new task with adjusted policy.",
+    "Final-file PSNR is below the enabled threshold; output withheld. Review quality and create a new task with adjusted policy.",
   quality_policy: "Invalid quality policy. Minimum PSNR must be 20–60dB.",
   trace_limit: "Batch tracing: up to 20 files, 50MiB each, 128MiB total.",
   trace_service_error:

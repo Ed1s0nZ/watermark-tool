@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 	"watermark-tool/internal/distribution"
+	"watermark-tool/internal/output"
 	"watermark-tool/internal/quality"
 )
 
@@ -162,6 +163,8 @@ func (m *Manager) dispatch(id string) {
 }
 func errorCode(err error) string {
 	switch {
+	case errors.Is(err, output.ErrVerification):
+		return "output_verification"
 	case errors.Is(err, quality.ErrThreshold):
 		return "quality_failed"
 	case errors.Is(err, distribution.ErrLimit):

@@ -10,6 +10,10 @@ import {
   Table,
   Typography,
 } from "antd";
+import { ArtworkControls } from "./ArtworkControls";
+import { ExclusionEditor } from "./ExclusionEditor";
+import { ArtworkState, emptyArtwork, logoDefault } from "./artwork";
+import { OutputFields, OutputOptions, normalizedOutput } from "./OutputFields";
 import { PolicyControls } from "./PolicyControls";
 import { QualityFields, QualityPolicy } from "./quality";
 import { api, APIError } from "./api";
@@ -50,6 +54,8 @@ export function JobsPage() {
   const [csv, setCSV] = useState("recipient_id,name\n001,Alice\n002,张三");
   const [mode, setMode] = useState<"blind" | "dual">("blind");
   const [text, setText] = useState("内部资料 · {name} · {recipient_id}");
+  const [artwork, setArtwork] = useState<ArtworkState>(emptyArtwork);
+  const [output, setOutput] = useState<OutputOptions>({ format: "png" });
   const [quality, setQuality] = useState<QualityPolicy>({});
   const [style, setStyle] = useState<Style>(defaultStyle);
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -154,6 +160,19 @@ export function JobsPage() {
   function restore(job: DeliveryJob) {
     change();
     setMode(job.mode);
+    setOutput(normalizedOutput(job.output));
+    setArtwork({
+      layers: job.artwork?.layers ?? "text",
+      logo: job.artwork?.logo
+        ? {
+            position: job.artwork.logo.position,
+            width_ratio: job.artwork.logo.width_ratio,
+            opacity: job.artwork.logo.opacity,
+          }
+        : { ...logoDefault },
+      expectedSHA: job.artwork?.logo?.sha256,
+      exclusions: structuredClone(job.artwork?.exclusions ?? {}),
+    });
     setQuality(job.quality_policy ? { ...job.quality_policy } : {});
     setText(job.template_text ?? "{name}");
     setStyle(job.style ? { ...job.style } : defaultStyle);
@@ -206,7 +225,14 @@ export function JobsPage() {
       </div>
       <Alert message={t.limits} />
       <PolicyControls
-        value={{ mode, template: text, style, quality }}
+        value={{
+          mode,
+          template: text,
+          style,
+          quality,
+          layout: { layers: artwork.layers, logo: artwork.logo },
+          output,
+        }}
         disabled={busy}
         onApply={(p) => {
           change();
@@ -214,10 +240,35 @@ export function JobsPage() {
           setText(p.template);
           setStyle(p.style);
           setQuality(p.quality);
+          setOutput(normalizedOutput(p.output));
+          setArtwork({
+            ...emptyArtwork(),
+            ...(p.layout ?? {}),
+            exclusions: artwork.exclusions,
+          });
         }}
       />
+
       <Card>
         <Form layout="vertical">
+          <OutputFields
+            value={output}
+            disabled={busy}
+            onChange={(v) => {
+              change();
+              setOutput(v);
+            }}
+          />
+          {mode === "dual" && (
+            <ArtworkControls
+              value={artwork}
+              disabled={busy}
+              onChange={(v) => {
+                change();
+                setArtwork(v);
+              }}
+            />
+          )}
           <QualityFields
             value={quality}
             disabled={busy}
@@ -239,6 +290,17 @@ export function JobsPage() {
               }}
             />
           </Form.Item>
+          {mode === "dual" && (
+            <ExclusionEditor
+              files={files}
+              value={artwork.exclusions}
+              disabled={busy}
+              onChange={(v) => {
+                change();
+                setArtwork({ ...artwork, exclusions: v });
+              }}
+            />
+          )}
           <Form.Item label={t.csv}>
             <Input.TextArea
               aria-label={t.csv}
@@ -359,8 +421,12 @@ export function JobsPage() {
                         setProgress(`${t.rendering} ${done}/${total}`);
                     },
                     quality,
+                    artwork,
+                    output,
                   ).catch((e) => {
                     if (e instanceof APIError) throw e;
+                    if (e instanceof Error && e.message.startsWith("artwork_"))
+                      throw new APIError(422, e.message);
                     if (e instanceof Error && e.message === "font")
                       throw new APIError(422, "job_font");
                     throw new APIError(422, "job_invalid");

@@ -17,7 +17,9 @@ const suites =
         ["workbench.spec.ts"],
         ["jobs.spec.ts"],
         ["jobs-cancel.spec.ts"],
- ["trace-quality.spec.ts"],
+        ["trace-quality.spec.ts"],
+        ["logo-exclusion.spec.ts"],
+        ["jpeg-jobs.spec.ts"],
       ];
 try {
   for (const [index, suite] of suites.entries()) {

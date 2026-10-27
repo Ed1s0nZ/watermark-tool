@@ -7,6 +7,7 @@ import {
   PolicyValue,
   Preset,
 } from "./policies";
+import { useArtText } from "./artText";
 import { useFeatureText } from "./traceText";
 export function PolicyControls({
   value,
@@ -18,6 +19,7 @@ export function PolicyControls({
   disabled?: boolean;
 }) {
   const t = useFeatureText();
+  const at = useArtText();
   const [custom, setCustom] = useState<Preset[]>([]),
     [selected, setSelected] = useState<string>(),
     [name, setName] = useState(""),
@@ -48,7 +50,9 @@ export function PolicyControls({
   return (
     <Card size="small" title={t.policies}>
       <Space direction="vertical" style={{ width: "100%" }}>
-        <Typography.Text type="secondary">{t.policyHint}</Typography.Text>
+        <Typography.Text type="secondary">
+          {t.policyHint} {at.newPolicyHint}
+        </Typography.Text>
         <Space wrap>
           <Select
             aria-label={t.select}

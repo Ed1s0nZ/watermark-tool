@@ -6,6 +6,7 @@ import (
 	"image"
 	"image/color"
 	"math"
+	"regexp"
 	"watermark-tool/internal/blind"
 )
 
@@ -73,13 +74,19 @@ func (p Policy) Accept(m Metric) bool {
 }
 
 type Summary struct {
-	Width     int     `json:"width"`
-	Height    int     `json:"height"`
-	Capacity  int     `json:"capacity_bytes"`
-	Verified  bool    `json:"verified"`
-	Embedding Metric  `json:"embedding"`
-	Visible   *Metric `json:"visible,omitempty"`
-	Accepted  bool    `json:"accepted"`
+	Encoding     *Metric `json:"encoding,omitempty"`
+	Final        *Metric `json:"final,omitempty"`
+	OutputSHA256 string  `json:"output_sha256,omitempty"`
+	OutputBytes  int64   `json:"output_bytes,omitempty"`
+	Format       string  `json:"format,omitempty"`
+	JPEGQuality  int     `json:"jpeg_quality,omitempty"`
+	Width        int     `json:"width"`
+	Height       int     `json:"height"`
+	Capacity     int     `json:"capacity_bytes"`
+	Verified     bool    `json:"verified"`
+	Embedding    Metric  `json:"embedding"`
+	Visible      *Metric `json:"visible,omitempty"`
+	Accepted     bool    `json:"accepted"`
 }
 
 func Compare(input, output, original image.Image, p Policy) Summary {
@@ -92,6 +99,38 @@ func Compare(input, output, original image.Image, p Policy) Summary {
 	s.Accepted = p.Accept(s.Embedding)
 	return s
 }
+func (s Summary) GateMetric() Metric {
+	if s.Final != nil {
+		return *s.Final
+	}
+	return s.Embedding
+}
 func (s Summary) Valid() bool {
-	return s.Width > 0 && s.Height > 0 && s.Width <= blind.MaxPixels/s.Height && s.Capacity == blind.MaxTextBytes && s.Verified && s.Embedding.Valid() && (s.Visible == nil || s.Visible.Valid())
+	base := s.Width > 0 && s.Height > 0 && s.Width <= blind.MaxPixels/s.Height && s.Capacity == blind.MaxTextBytes && s.Embedding.Valid() && (s.Visible == nil || s.Visible.Valid())
+	if s.Final == nil {
+		return base && s.Verified && s.Encoding == nil && s.OutputSHA256 == "" && s.OutputBytes == 0 && s.Format == "" && s.JPEGQuality == 0
+	}
+	return base && s.Final.Valid() && s.Encoding != nil && s.Encoding.Valid() && regexp.MustCompile(`^[a-f0-9]{64}$`).MatchString(s.OutputSHA256) && s.OutputBytes > 0 && s.OutputBytes <= 50<<20 && (s.Format == "png" && s.JPEGQuality == 0 || s.Format == "jpeg" && s.JPEGQuality >= 60 && s.JPEGQuality <= 100) && (!s.Accepted || s.Verified)
+}
+func CloneSummary(s *Summary) *Summary {
+	if s == nil {
+		return nil
+	}
+	out := *s
+	clone := func(m *Metric) *Metric {
+		if m == nil {
+			return nil
+		}
+		v := *m
+		if v.DB != nil {
+			db := *v.DB
+			v.DB = &db
+		}
+		return &v
+	}
+	out.Embedding = *clone(&s.Embedding)
+	out.Visible = clone(s.Visible)
+	out.Encoding = clone(s.Encoding)
+	out.Final = clone(s.Final)
+	return &out
 }

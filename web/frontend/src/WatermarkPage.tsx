@@ -1,3 +1,10 @@
+import { OutputFields, OutputOptions } from "./OutputFields";
+import {
+  Quality,
+  QualityFields,
+  QualityPolicy,
+  QualitySummary,
+} from "./quality";
 import { useEffect, useRef, useState } from "react";
 import {
   Alert,
@@ -36,6 +43,9 @@ export function WatermarkPage({
   types: string[];
 }) {
   const t = useText();
+  const [output, setOutput] = useState<OutputOptions>({ format: "png" });
+  const [qualityPolicy, setQualityPolicy] = useState<QualityPolicy>({});
+  const [quality, setQuality] = useState<Quality>();
   const [algorithm, setAlgorithm] = useState("legacy");
   const blindMode = algorithm === "go-dct-v1";
   const allowedTypes = blindMode ? ["png", "jpg", "jpeg"] : types;
@@ -71,6 +81,7 @@ export function WatermarkPage({
   );
   const byteLength = new TextEncoder().encode(text).length;
   function clearResult() {
+    setQuality(undefined);
     setResult(undefined);
     setDownload(undefined);
     if (url.current) {
@@ -100,6 +111,10 @@ export function WatermarkPage({
     const body = new FormData();
     body.append("file", file);
     body.append("algorithm", algorithm);
+    if (kind === "add" && blindMode) {
+      body.append("output", JSON.stringify(output));
+      body.append("quality_policy", JSON.stringify(qualityPolicy));
+    }
     if (kind === "add") body.append("watermark", text);
     try {
       const response = await api(
@@ -110,16 +125,28 @@ export function WatermarkPage({
       );
       if (kind === "add") {
         const blob = await response.blob();
+        setQuality(
+          response.headers.get("X-Watermark-Quality")
+            ? JSON.parse(response.headers.get("X-Watermark-Quality")!)
+            : undefined,
+        );
         url.current = URL.createObjectURL(blob);
         const dot = file.name.lastIndexOf(".");
         setDownload({
           url: url.current,
-          name: `${file.name.slice(0, dot)}_watermarked${blindMode ? ".png" : file.name.slice(dot)}`,
+          name: `${file.name.slice(0, dot)}_watermarked${blindMode ? (output.format === "jpeg" ? ".jpg" : ".png") : file.name.slice(dot)}`,
         });
       } else {
         setResult(await response.json());
       }
     } catch (e) {
+      if (
+        e instanceof APIError &&
+        e.data &&
+        typeof e.data === "object" &&
+        "quality" in e.data
+      )
+        setQuality((e.data as { quality: Quality }).quality);
       setError(e);
     } finally {
       pending.current = false;
@@ -171,6 +198,26 @@ export function WatermarkPage({
                   />
                 )}
               </Form.Item>
+              {kind === "add" && blindMode && (
+                <>
+                  <OutputFields
+                    value={output}
+                    disabled={busy}
+                    onChange={(v) => {
+                      clearResult();
+                      setOutput(v);
+                    }}
+                  />
+                  <QualityFields
+                    value={qualityPolicy}
+                    disabled={busy}
+                    onChange={(v) => {
+                      clearResult();
+                      setQualityPolicy(v);
+                    }}
+                  />
+                </>
+              )}
               <Form.Item label={t.upload}>
                 <Upload.Dragger
                   accept={allowedTypes.map((type) => "." + type).join(",")}
@@ -299,6 +346,7 @@ export function WatermarkPage({
             style={{ marginTop: 24 }}
           >
             <div aria-live="polite">
+              {quality && <QualitySummary value={quality} />}
               {download ? (
                 <Space direction="vertical" size={16}>
                   <Typography.Text type="success">

@@ -3,6 +3,8 @@ package distribution
 import (
 	"unicode/utf8"
 	"watermark-tool/internal/blind"
+	"watermark-tool/internal/composition"
+	"watermark-tool/internal/output"
 )
 
 func (s *Store) validateJobs() error {
@@ -29,6 +31,12 @@ func (s *Store) validateJobs() error {
 		default:
 			return ErrStore
 		}
+		if _, err := output.Normalize(j.Output); err != nil {
+			return ErrStore
+		}
+		if j.Mode == "blind" && j.Artwork != nil {
+			return ErrStore
+		}
 		if j.QualityPolicy != nil && !j.QualityPolicy.Valid() {
 			return ErrStore
 		}
@@ -52,11 +60,14 @@ func (s *Store) validateJobs() error {
 			sourceHashes[src.SHA256] = true
 			original += src.Bytes
 		}
+		if !composition.Validate(j.Artwork, sourceHashes) {
+			return ErrStore
+		}
 		total = original
 		matrix := map[string]bool{}
 		recipients := map[string]string{}
 		for _, c := range j.Copies {
-			if c.Quality != nil && (!c.Quality.Valid() || j.QualityPolicy != nil && c.Quality.Accepted != j.QualityPolicy.Accept(c.Quality.Embedding)) {
+			if c.Quality != nil && (!c.Quality.Valid() || j.QualityPolicy != nil && c.Quality.Accepted != (c.Quality.Verified && j.QualityPolicy.Accept(c.Quality.GateMetric()))) {
 				return ErrStore
 			}
 			if j.Generated && j.QualityPolicy != nil && (c.Quality == nil || !c.Quality.Accepted) {
@@ -73,7 +84,7 @@ func (s *Store) validateJobs() error {
 			matrix[pair] = true
 			copies[c.ID] = true
 			total += c.InputBytes
-			if j.Mode == "dual" {
+			if j.Mode == "dual" && composition.Text(j.Artwork) {
 				if _, err := VisibleText(j.TemplateText, c.Recipient); err != nil {
 					return ErrStore
 				}

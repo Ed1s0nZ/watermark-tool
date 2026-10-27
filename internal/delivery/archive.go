@@ -7,12 +7,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"image"
-	"image/png"
 	"io"
 	"os"
 	"path/filepath"
 	"watermark-tool/internal/blind"
 	"watermark-tool/internal/distribution"
+	"watermark-tool/internal/output"
 	"watermark-tool/internal/quality"
 )
 
@@ -81,13 +81,6 @@ func (m *Manager) archive(ctx context.Context, j distribution.Job, key []byte) (
 		if e != nil {
 			return "", 0, e
 		}
-		verified, e := blind.Extract(marked, key)
-		if e != nil {
-			return "", 0, e
-		}
-		if verified.Watermark != c.ID || verified.Timestamp != j.CreatedAt.Format("2006-01-02T15:04:05Z07:00") {
-			return "", 0, blind.ErrInvalid
-		}
 		var rawSource image.Image
 		if j.Mode == "dual" {
 			rawSource, err = blind.Load(m.inputPath(j.ID, c.SourceID, ""))
@@ -99,12 +92,14 @@ func (m *Manager) archive(ctx context.Context, j distribution.Job, key []byte) (
 		if j.QualityPolicy != nil {
 			policy = *j.QualityPolicy
 		}
-		summary := quality.Compare(original, marked, rawSource, policy)
-		if err = m.store.ObserveJobQuality(j.ID, c.ID, summary); err != nil {
-			return "", 0, err
+		data, summary, encodeErr := output.Encode(original, marked, rawSource, key, c.ID, j.CreatedAt, j.Output, policy)
+		if summary.OutputSHA256 != "" {
+			if err = m.store.ObserveJobQuality(j.ID, c.ID, summary); err != nil {
+				return "", 0, err
+			}
 		}
-		if !summary.Accepted {
-			return "", 0, quality.ErrThreshold
+		if encodeErr != nil {
+			return "", 0, encodeErr
 		}
 		qualityJSON, _ := json.Marshal(summary)
 		if err = ctx.Err(); err != nil {
@@ -113,14 +108,14 @@ func (m *Manager) archive(ctx context.Context, j distribution.Job, key []byte) (
 		if recipients[c.Recipient.ID] == 0 {
 			recipients[c.Recipient.ID] = len(recipients) + 1
 		}
-		filename := fmt.Sprintf("recipient-%03d/%s-%s.png", recipients[c.Recipient.ID], src.ID, c.ID)
+		filename := fmt.Sprintf("recipient-%03d/%s-%s.%s", recipients[c.Recipient.ID], src.ID, c.ID, output.Extension(j.Output))
 		h := &zip.FileHeader{Name: filename, Method: zip.Store}
 		h.SetModTime(j.CreatedAt)
 		entry, e := z.CreateHeader(h)
 		if e != nil {
 			return "", 0, e
 		}
-		if e = png.Encode(entry, marked); e != nil {
+		if _, e = entry.Write(data); e != nil {
 			return "", 0, e
 		}
 		manifest = append(manifest, []string{filename, src.ID, cell(src.Name), src.SHA256, cell(c.Recipient.ID), cell(c.Name), c.ID, j.KeyID, c.RenderedSHA256, string(qualityJSON)})

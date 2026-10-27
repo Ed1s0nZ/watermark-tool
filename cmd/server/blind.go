@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"time"
+	"watermark-tool/internal/output"
 
 	"github.com/gin-gonic/gin"
 	"watermark-tool/internal/blind"
@@ -81,16 +83,40 @@ func handleBlind(c *gin.Context, tempDir string, add bool, stores ...*distributi
 	setAuditFile(c, input)
 	c.Header("X-Watermark-Algorithm", blind.Algorithm)
 	if add {
-		output := filepath.Join(tempDir, generateUniqueFilename("output.png"))
-		defer safeRemoveFile(output)
-		if err := blind.AddFile(input, output, c.PostForm("watermark"), key); err != nil {
-			blindError(c, err)
+		options, e := formOutput(c)
+		if e != nil {
+			platformError(c, e)
 			return
 		}
-		c.Header("Content-Disposition", "attachment; filename=watermarked.png")
-		c.File(output)
+		policy, e := formQuality(c)
+		if e != nil {
+			platformError(c, e)
+			return
+		}
+		img, e := blind.Load(input)
+		if e != nil {
+			platformError(c, e)
+			return
+		}
+		now := time.Now()
+		text := c.PostForm("watermark")
+		marked, e := blind.Embed(img, text, key, now)
+		if e != nil {
+			platformError(c, e)
+			return
+		}
+		data, summary, e := output.Encode(img, marked, nil, key, text, now, options, policy)
+		if e != nil {
+			outputError(c, e, summary)
+			return
+		}
+		if c.Request.Context().Err() != nil {
+			return
+		}
+		sendOutput(c, data, summary, options, "watermarked")
 		return
 	}
+
 	var result blind.Result
 	if managed != nil {
 		var img image.Image

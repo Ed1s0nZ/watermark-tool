@@ -9,6 +9,8 @@ import (
 	"unicode"
 	"unicode/utf8"
 	"watermark-tool/internal/blind"
+	"watermark-tool/internal/composition"
+	"watermark-tool/internal/output"
 	"watermark-tool/internal/quality"
 )
 
@@ -62,7 +64,26 @@ func (s *Store) jobsSnapshot() []Job {
 func pendingJob(status string) bool {
 	return status == "preparing" || status == "queued" || status == "processing" || status == "cancelling"
 }
+
+type JobOptions struct {
+	Output  *output.Options      `json:"output,omitempty"`
+	Artwork *composition.Artwork `json:"artwork,omitempty"`
+}
+
 func (s *Store) NewJob(request, actor string, sources []JobSource, recipients []Recipient, mode, text string, style map[string]any, policies ...quality.Policy) (Job, error) {
+	return s.NewJobWithOptions(request, actor, sources, recipients, mode, text, style, JobOptions{}, policies...)
+}
+func (s *Store) NewJobWithOptions(request, actor string, sources []JobSource, recipients []Recipient, mode, text string, style map[string]any, options JobOptions, policies ...quality.Policy) (Job, error) {
+	normalized, e := output.Normalize(options.Output)
+	if e != nil {
+		return Job{}, e
+	}
+	options.Output = normalized
+	if !composition.Validate(options.Artwork, nil) || mode == "blind" && options.Artwork != nil {
+		return Job{}, composition.ErrArtwork
+	}
+	options.Artwork = composition.Normalize(options.Artwork)
+
 	var policy *quality.Policy
 	if len(policies) > 1 {
 		return Job{}, quality.ErrPolicy
@@ -85,13 +106,16 @@ func (s *Store) NewJob(request, actor string, sources []JobSource, recipients []
 		names[src.SHA256] = true
 		clean[i] = JobSource{Name: src.Name, SHA256: src.SHA256, Width: src.Width, Height: src.Height}
 	}
+	if !composition.Validate(options.Artwork, names) {
+		return Job{}, composition.ErrArtwork
+	}
 	ids := map[string]bool{}
 	for _, r := range recipients {
 		if r.ID == "" || r.Name == "" || len(r.ID) > 64 || len(r.Name) > 128 || !utf8.ValidString(r.ID) || !utf8.ValidString(r.Name) || ids[r.ID] {
 			return Job{}, ErrRecipients
 		}
 		ids[r.ID] = true
-		if mode == "dual" {
+		if mode == "dual" && composition.Text(options.Artwork) {
 			if _, err := VisibleText(text, r); err != nil {
 				return Job{}, err
 			}
@@ -114,8 +138,10 @@ func (s *Store) NewJob(request, actor string, sources []JobSource, recipients []
 		Recipients []Recipient
 		Mode, Text string
 		Style      map[string]any
-		Quality    *quality.Policy `json:",omitempty"`
-	}{actor, clean, recipients, mode, text, style, fingerprintPolicy})
+		Quality    *quality.Policy      `json:",omitempty"`
+		Output     *output.Options      `json:",omitempty"`
+		Artwork    *composition.Artwork `json:",omitempty"`
+	}{actor, clean, recipients, mode, text, style, fingerprintPolicy, options.Output, options.Artwork})
 	if err != nil {
 		return Job{}, ErrRecipients
 	}
@@ -159,7 +185,7 @@ func (s *Store) NewJob(request, actor string, sources []JobSource, recipients []
 		return Job{}, err
 	}
 	now := time.Now().UTC().Truncate(time.Second)
-	job := Job{QualityPolicy: policy, ID: id, Operator: actor, LastActor: actor, CreatedAt: now, UpdatedAt: now, KeyID: keyID, Algorithm: blind.Algorithm, Mode: mode, TemplateText: text, Style: style, Status: "preparing", Phase: "upload", Sources: clean, RequestHash: rh, Fingerprint: fp, Total: len(clean) * len(recipients)}
+	job := Job{Output: options.Output, Artwork: options.Artwork, QualityPolicy: policy, ID: id, Operator: actor, LastActor: actor, CreatedAt: now, UpdatedAt: now, KeyID: keyID, Algorithm: blind.Algorithm, Mode: mode, TemplateText: text, Style: style, Status: "preparing", Phase: "upload", Sources: clean, RequestHash: rh, Fingerprint: fp, Total: len(clean) * len(recipients)}
 	for i := range job.Sources {
 		sid, e := randomID(16)
 		if e != nil {

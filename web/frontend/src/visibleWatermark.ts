@@ -132,27 +132,7 @@ export async function renderVisible(
     const pixels = ctx.getImageData(0, 0, w, h).data;
     for (let i = 3; i < pixels.length; i += 4)
       if (pixels[i] !== 255) throw Error("invalid");
-    await document.fonts.ready;
-    ctx.font = `${style.size}px system-ui, sans-serif`;
-    ctx.textBaseline = "middle";
-    const tw = ctx.measureText(text).width;
-    if (tw > w - 24 || style.size > h - 24) throw Error("font");
-    // Reject glyphs that rasterize exactly like the missing-glyph box or replacement character.
-    const glyph = document.createElement("canvas");
-    glyph.width = 128;
-    glyph.height = 128;
-    const g = glyph.getContext("2d")!;
-    g.font = "32px system-ui, sans-serif";
-    g.textBaseline = "top";
-    function raster(c: string) {
-      g.clearRect(0, 0, 128, 128);
-      g.fillText(c, 4, 4);
-      return Array.from(g.getImageData(0, 0, 128, 128).data).join(",");
-    }
-    const missing = [raster("\uffff"), raster("\ufffd")];
-    for (const c of new Set(text)) {
-      if (!/\s/u.test(c) && missing.includes(raster(c))) throw Error("font");
-    }
+    const tw = await checkVisibleText(ctx, text, style, w, h);
     ctx.fillStyle = style.color;
     ctx.globalAlpha = style.opacity;
     if (style.mode === "single") {
@@ -190,4 +170,42 @@ export async function renderVisible(
   } finally {
     bitmap.close();
   }
+}
+
+export async function checkVisibleText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  style: Style,
+  w: number,
+  h: number,
+) {
+  if (
+    !text.trim() ||
+    Array.from(text).length > 80 ||
+    /[\r\n\t\p{Cc}\p{Cf}]/u.test(text) ||
+    !validStyle(style)
+  )
+    throw Error("invalid");
+  await document.fonts.ready;
+  ctx.font = `${style.size}px system-ui, sans-serif`;
+  ctx.textBaseline = "middle";
+  const tw = ctx.measureText(text).width;
+  if (tw > w - 24 || style.size > h - 24) throw Error("font");
+  // Reject glyphs that rasterize exactly like the missing-glyph box or replacement character.
+  const glyph = document.createElement("canvas");
+  glyph.width = 128;
+  glyph.height = 128;
+  const g = glyph.getContext("2d")!;
+  g.font = "32px system-ui, sans-serif";
+  g.textBaseline = "top";
+  function raster(c: string) {
+    g.clearRect(0, 0, 128, 128);
+    g.fillText(c, 4, 4);
+    return Array.from(g.getImageData(0, 0, 128, 128).data).join(",");
+  }
+  const missing = [raster("\uffff"), raster("\ufffd")];
+  for (const c of new Set(text)) {
+    if (!/\s/u.test(c) && missing.includes(raster(c))) throw Error("font");
+  }
+  return tw;
 }

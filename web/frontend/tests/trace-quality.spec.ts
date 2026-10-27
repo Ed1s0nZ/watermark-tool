@@ -29,8 +29,10 @@ test("policies, streamed mixed tracing, cancellation and quality gating", async 
   expect(stored.items).toHaveLength(1);
   expect(Object.keys(stored.items[0]).sort()).toEqual([
     "id",
+    "layout",
     "mode",
     "name",
+    "output",
     "quality",
     "style",
     "template",
@@ -40,7 +42,7 @@ test("policies, streamed mixed tracing, cancellation and quality gating", async 
     .getByRole("button", { name: "重命名所选策略", exact: true })
     .click();
   await page
-    .getByRole("switch", { name: "启用隐形嵌入最低PSNR", exact: true })
+    .getByRole("switch", { name: "启用最终成品最低PSNR", exact: true })
     .click();
   await page
     .getByRole("spinbutton", { name: "最低PSNR dB", exact: true })
@@ -228,7 +230,7 @@ test("policies, streamed mixed tracing, cancellation and quality gating", async 
   await page.getByLabel("可见文字", { exact: true }).fill("测试 Alice");
   await page.getByLabel("隐形载荷", { exact: true }).fill("quality-text");
   await page
-    .getByRole("switch", { name: "启用隐形嵌入最低PSNR", exact: true })
+    .getByRole("switch", { name: "启用最终成品最低PSNR", exact: true })
     .click();
   await page
     .getByRole("spinbutton", { name: "最低PSNR dB", exact: true })
@@ -240,7 +242,7 @@ test("policies, streamed mixed tracing, cancellation and quality gating", async 
     page.getByRole("link", { name: "下载图片", exact: true }),
   ).toHaveCount(0);
   await page
-    .getByRole("switch", { name: "启用隐形嵌入最低PSNR", exact: true })
+    .getByRole("switch", { name: "启用最终成品最低PSNR", exact: true })
     .click();
   await page.getByRole("button", { name: "生成预览", exact: true }).click();
   await page.getByRole("button", { name: "生成双水印", exact: true }).click();

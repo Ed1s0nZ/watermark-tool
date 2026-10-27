@@ -2,6 +2,8 @@ package distribution
 
 import (
 	"time"
+	"watermark-tool/internal/composition"
+	"watermark-tool/internal/output"
 	"watermark-tool/internal/quality"
 )
 
@@ -30,56 +32,48 @@ type JobCopy struct {
 	Uploaded       bool   `json:"input_uploaded"`
 }
 type Job struct {
-	QualityPolicy *quality.Policy `json:"quality_policy,omitempty"`
-	UploadToken   string          `json:"upload_token"`
-	ID            string          `json:"id"`
-	Operator      string          `json:"operator"`
-	LastActor     string          `json:"last_actor"`
-	CreatedAt     time.Time       `json:"created_at"`
-	UpdatedAt     time.Time       `json:"updated_at"`
-	KeyID         string          `json:"key_id"`
-	Algorithm     string          `json:"algorithm"`
-	Mode          string          `json:"mode"`
-	TemplateText  string          `json:"template_text,omitempty"`
-	Style         map[string]any  `json:"style,omitempty"`
-	Sources       []JobSource     `json:"sources"`
-	Copies        []JobCopy       `json:"copies"`
-	Status        string          `json:"status"`
-	Phase         string          `json:"phase"`
-	Done          int             `json:"done"`
-	Total         int             `json:"total"`
-	Attempts      int             `json:"attempts"`
-	Error         string          `json:"error,omitempty"`
-	Generated     bool            `json:"generated"`
-	ArchiveSHA256 string          `json:"archive_sha256,omitempty"`
-	ArchiveBytes  int64           `json:"archive_bytes"`
-	ExpiresAt     time.Time       `json:"expires_at"`
-	DownloadState string          `json:"download_state,omitempty"`
-	RequestHash   string          `json:"request_hash,omitempty"`
-	Fingerprint   string          `json:"fingerprint,omitempty"`
+	Output        *output.Options      `json:"output,omitempty"`
+	Artwork       *composition.Artwork `json:"artwork,omitempty"`
+	QualityPolicy *quality.Policy      `json:"quality_policy,omitempty"`
+	UploadToken   string               `json:"upload_token"`
+	ID            string               `json:"id"`
+	Operator      string               `json:"operator"`
+	LastActor     string               `json:"last_actor"`
+	CreatedAt     time.Time            `json:"created_at"`
+	UpdatedAt     time.Time            `json:"updated_at"`
+	KeyID         string               `json:"key_id"`
+	Algorithm     string               `json:"algorithm"`
+	Mode          string               `json:"mode"`
+	TemplateText  string               `json:"template_text,omitempty"`
+	Style         map[string]any       `json:"style,omitempty"`
+	Sources       []JobSource          `json:"sources"`
+	Copies        []JobCopy            `json:"copies"`
+	Status        string               `json:"status"`
+	Phase         string               `json:"phase"`
+	Done          int                  `json:"done"`
+	Total         int                  `json:"total"`
+	Attempts      int                  `json:"attempts"`
+	Error         string               `json:"error,omitempty"`
+	Generated     bool                 `json:"generated"`
+	ArchiveSHA256 string               `json:"archive_sha256,omitempty"`
+	ArchiveBytes  int64                `json:"archive_bytes"`
+	ExpiresAt     time.Time            `json:"expires_at"`
+	DownloadState string               `json:"download_state,omitempty"`
+	RequestHash   string               `json:"request_hash,omitempty"`
+	Fingerprint   string               `json:"fingerprint,omitempty"`
 }
 
 func cloneJob(j Job) Job {
 	j.QualityPolicy = quality.Clone(j.QualityPolicy)
 	j.Sources = append([]JobSource(nil), j.Sources...)
 	j.Copies = append([]JobCopy(nil), j.Copies...)
+	j.Artwork = composition.Clone(j.Artwork)
+	if j.Output != nil {
+		o := *j.Output
+		j.Output = &o
+	}
 	for n, c := range j.Copies {
-		if c.Quality != nil {
-			q := *c.Quality
-			if q.Embedding.DB != nil {
-				v := *q.Embedding.DB
-				q.Embedding.DB = &v
-			}
-			if q.Visible != nil {
-				m := *q.Visible
-				if m.DB != nil {
-					v := *m.DB
-					m.DB = &v
-				}
-				q.Visible = &m
-			}
-			j.Copies[n].Quality = &q
-		}
+		j.Copies[n].Quality = quality.CloneSummary(c.Quality)
 	}
 	if j.Style != nil {
 		m := map[string]any{}

@@ -9,6 +9,11 @@ import {
   Space,
   Typography,
 } from "antd";
+import { useArtText } from "./artText";
+import { ArtworkControls } from "./ArtworkControls";
+import { ExclusionEditor } from "./ExclusionEditor";
+import { ArtworkState, emptyArtwork, renderArtwork } from "./artwork";
+import { OutputFields, OutputOptions, normalizedOutput } from "./OutputFields";
 import { VisibleStyleFields } from "./VisibleStyleFields";
 import { PolicyControls } from "./PolicyControls";
 import {
@@ -32,9 +37,12 @@ import {
 } from "./visibleWatermark";
 export function DualPage({ active }: { active: boolean }) {
   const t = useWorkbenchText();
+  const at = useArtText();
   const [file, setFile] = useState<File>();
   const [text, setText] = useState("");
   const [payload, setPayload] = useState("");
+  const [artwork, setArtwork] = useState<ArtworkState>(emptyArtwork);
+  const [format, setFormat] = useState<OutputOptions>({ format: "png" });
   const [quality, setQuality] = useState<QualityPolicy>({});
   const [style, setStyle] = useState<Style>(defaultStyle);
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -107,16 +115,46 @@ export function DualPage({ active }: { active: boolean }) {
         <Typography.Text type="secondary">{t.dualHint}</Typography.Text>
       </div>
       <PolicyControls
-        value={{ mode: "dual", template: "{name}", style, quality }}
+        value={{
+          mode: "dual",
+          template: "{name}",
+          style,
+          quality,
+          layout: { layers: artwork.layers, logo: artwork.logo },
+          output: format,
+        }}
         disabled={busy}
         onApply={(p) => {
           reset();
           setStyle(p.style);
           setQuality(p.quality);
+          setFormat(normalizedOutput(p.output));
+          setArtwork({
+            ...emptyArtwork(),
+            ...(p.layout ?? {}),
+            exclusions: artwork.exclusions,
+          });
         }}
       />
+
       <Card>
         <Form layout="vertical">
+          <OutputFields
+            value={format}
+            disabled={busy}
+            onChange={(v) => {
+              reset();
+              setFormat(v);
+            }}
+          />
+          <ArtworkControls
+            value={artwork}
+            disabled={busy}
+            onChange={(v) => {
+              reset();
+              setArtwork(v);
+            }}
+          />
           <QualityFields
             value={quality}
             disabled={busy}
@@ -138,6 +176,15 @@ export function DualPage({ active }: { active: boolean }) {
               }}
             />
           </Form.Item>
+          <ExclusionEditor
+            files={file ? [file] : []}
+            value={artwork.exclusions}
+            disabled={busy}
+            onChange={(v) => {
+              reset();
+              setArtwork({ ...artwork, exclusions: v });
+            }}
+          />
           <Form.Item label={t.visible}>
             <Input
               aria-label={t.visible}
@@ -253,7 +300,7 @@ export function DualPage({ active }: { active: boolean }) {
                 setMessage(t.invalid);
                 return;
               }
-              void preview.run(() => renderVisible(file, text, style));
+              void preview.run(() => renderArtwork(file, text, style, artwork));
             }}
           >
             {t.preview}
@@ -270,6 +317,7 @@ export function DualPage({ active }: { active: boolean }) {
                 body.append("watermark", payload);
                 body.append("original", file!);
                 body.append("quality_policy", JSON.stringify(quality));
+                body.append("output", JSON.stringify(format));
                 const response = await api("/workbench/dual", {
                   method: "POST",
                   body,
@@ -303,7 +351,13 @@ export function DualPage({ active }: { active: boolean }) {
             message={
               preview.error instanceof Error && preview.error.message === "font"
                 ? t.fontError
-                : t.invalid
+                : preview.error instanceof Error &&
+                    preview.error.message === "artwork_blocked"
+                  ? at.blocked
+                  : preview.error instanceof Error &&
+                      preview.error.message.startsWith("artwork_")
+                    ? at.invalid
+                    : t.invalid
             }
           />
         )}
@@ -312,7 +366,9 @@ export function DualPage({ active }: { active: boolean }) {
         )}
         <ErrorNotice error={output.error} />
         {output.error instanceof APIError &&
-          output.error.code === "quality_failed" && (
+          ["quality_failed", "output_verification"].includes(
+            output.error.code,
+          ) && (
             <QualitySummary
               value={(output.error.data as { quality?: Quality })?.quality}
             />
@@ -344,7 +400,10 @@ export function DualPage({ active }: { active: boolean }) {
         <Card>
           <Space direction="vertical">
             <Alert type="success" message={t.verified} />
-            <Button href={outputURL} download="dual-watermark.png">
+            <Button
+              href={outputURL}
+              download={`dual-watermark.${format.format === "jpeg" ? "jpg" : "png"}`}
+            >
               {t.download}
             </Button>
           </Space>

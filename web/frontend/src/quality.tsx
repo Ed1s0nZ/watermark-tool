@@ -1,4 +1,5 @@
 import { Card, Form, InputNumber, Space, Switch, Tag, Typography } from "antd";
+import { useArtText } from "./artText";
 import { useFeatureText } from "./traceText";
 export interface QualityPolicy {
   minimum_psnr_db?: number;
@@ -8,6 +9,12 @@ export interface Metric {
   psnr_db?: number;
 }
 export interface Quality {
+  encoding?: Metric;
+  final?: Metric;
+  output_sha256?: string;
+  output_bytes?: number;
+  format?: string;
+  jpeg_quality?: number;
   width: number;
   height: number;
   capacity_bytes: number;
@@ -66,6 +73,7 @@ export function QualityFields({
 }
 export function QualitySummary({ value }: { value?: Quality }) {
   const t = useFeatureText();
+  const at = useArtText();
   const metric = (m?: Metric) =>
     !m
       ? t.unrecorded
@@ -88,12 +96,36 @@ export function QualitySummary({ value }: { value?: Quality }) {
               <Typography.Text>
                 {value.width} × {value.height} · {t.capacity}{" "}
                 {value.capacity_bytes} bytes ·{" "}
-                {value.verified ? t.verified : t.unavailable}
+                {value.verified ? t.verified : at.notVerified}
               </Typography.Text>
             </Space>
             <Typography.Text>
               {t.embedding}: {metric(value.embedding)}
             </Typography.Text>
+            {value.encoding && (
+              <Typography.Text>
+                {at.encoding}: {metric(value.encoding)}
+              </Typography.Text>
+            )}
+            {value.final && (
+              <Typography.Text>
+                {at.final}: {metric(value.final)}
+              </Typography.Text>
+            )}
+            {value.output_sha256 && (
+              <>
+                <Typography.Text>
+                  {value.format?.toUpperCase()} {value.jpeg_quality ?? ""} ·{" "}
+                  {at.bytes}: {value.output_bytes}
+                </Typography.Text>
+                <Typography.Paragraph
+                  style={{ overflowWrap: "anywhere" }}
+                  copyable
+                >
+                  {at.digest}: {value.output_sha256}
+                </Typography.Paragraph>
+              </>
+            )}
             {value.visible && (
               <Typography.Text>
                 {t.visible}: {metric(value.visible)}

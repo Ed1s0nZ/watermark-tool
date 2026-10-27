@@ -14,6 +14,7 @@ import (
 	"time"
 	"watermark-tool/internal/blind"
 	"watermark-tool/internal/distribution"
+	"watermark-tool/internal/output"
 	"watermark-tool/internal/quality"
 	"watermark-tool/internal/workbench"
 )
@@ -154,33 +155,20 @@ func registerWorkbench(api *gin.RouterGroup, store *distribution.Store, tempDir 
 				platformError(c, err)
 				return
 			}
-			actual, err := blind.Extract(out, key)
+			options, err := formOutput(c)
 			if err != nil {
 				platformError(c, err)
 				return
 			}
-			if actual.Watermark != text || actual.Timestamp != now.UTC().Format(time.RFC3339) {
-				platformError(c, blind.ErrInvalid)
+			data, summary, err := output.Encode(img, out, original, key, text, now, options, policy)
+			if err != nil {
+				outputError(c, err, summary)
 				return
 			}
 			if c.Request.Context().Err() != nil {
 				return
 			}
-			summary := quality.Compare(img, out, original, policy)
-			if !summary.Accepted {
-				c.Set("audit_code", "quality_failed")
-				c.JSON(422, gin.H{"code": "quality_failed", "quality": summary})
-				return
-			}
-			header, _ := json.Marshal(summary)
-			c.Header("X-Watermark-Quality", string(header))
-			output := filepath.Join(filepath.Dir(input), "dual.png")
-			if err = blind.SaveNew(output, out); err != nil {
-				platformError(c, err)
-				return
-			}
-			c.Header("Content-Disposition", "attachment; filename=dual-watermark.png")
-			c.File(output)
+			sendOutput(c, data, summary, options, "dual-watermark")
 		})
 	})
 	group.POST("/verify", func(c *gin.Context) {

@@ -33,9 +33,10 @@ const cn = {
   html: "导出汇总 HTML",
   quality: "质量摘要",
   qualityPolicy: "质量选项",
-  gate: "启用隐形嵌入最低PSNR",
+  gate: "启用最终成品最低PSNR",
   minimum: "最低PSNR dB",
-  qualityHint: "默认仅展示；启用后低于阈值不交付，范围20～60dB，建议35dB。",
+  qualityHint:
+    "默认仅展示；门槛比较最终文件相对嵌入输入的PSNR，低于阈值不交付，范围20～60dB，建议35dB。",
   metricHint: "PSNR衡量解码RGB差异，不代表人眼评价或抗压缩/裁剪保证。",
   embedding: "隐形嵌入变化（参考实际嵌入输入）",
   visible: "可见层变化（参考原图）",
@@ -101,10 +102,10 @@ const en: typeof cn = {
   html: "Export batch HTML",
   quality: "Quality summary",
   qualityPolicy: "Quality options",
-  gate: "Enforce minimum embedding PSNR",
+  gate: "Enforce minimum final-file PSNR",
   minimum: "Minimum PSNR dB",
   qualityHint:
-    "Display only by default. When enabled, results below 20–60dB threshold are withheld; suggested 35dB.",
+    "Display only by default. The gate compares the final decoded file with embedding input, 20–60dB; suggested 35dB.",
   metricHint:
     "PSNR measures decoded RGB differences, not perception or compression/crop robustness.",
   embedding: "Embedding change (reference: actual embedding input)",
