@@ -34,6 +34,7 @@ export function JobPreview({ plan }: { plan: Plan }) {
         {plan.mode === "dual" && <Alert type="info" message={wt.systemFont} />}
         <Space wrap>
           <Select
+            getPopupContainer={(node) => node.parentElement!}
             aria-label={t.source}
             style={{ width: 240, maxWidth: "100%" }}
             value={source}
@@ -41,6 +42,7 @@ export function JobPreview({ plan }: { plan: Plan }) {
             options={plan.sources.map((s, i) => ({ value: i, label: s.name }))}
           />
           <Select
+            getPopupContainer={(node) => node.parentElement!}
             aria-label={t.recipient}
             style={{ width: 240, maxWidth: "100%" }}
             value={recipient}

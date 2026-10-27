@@ -34,6 +34,9 @@ test("two images × three recipients: dual-watermark delivery, trace and audit",
     .getByLabel("密码", { exact: true })
     .fill("local-test-password-2026");
   await page.getByRole("button", { name: "登录工作台", exact: true }).click();
+  await expect(
+    page.getByRole("menuitem", { name: "多图分发任务", exact: true }),
+  ).toBeVisible();
   const initialCount = (
     await (
       await page.request.post("/api/jobs/search", {
@@ -106,11 +109,17 @@ test("two images × three recipients: dual-watermark delivery, trace and audit",
   expect((await before.json()).total).toBe(initialCount);
   await page
     .getByRole("combobox", { name: "原图", exact: true })
+    .scrollIntoViewIfNeeded();
+  await page
+    .getByRole("combobox", { name: "原图", exact: true })
     .press("ArrowDown");
   await page
     .locator(".ant-select-dropdown:visible")
     .getByTitle("two.png", { exact: true })
     .click();
+  await page
+    .getByRole("combobox", { name: "接收人", exact: true })
+    .scrollIntoViewIfNeeded();
   await page
     .getByRole("combobox", { name: "接收人", exact: true })
     .press("ArrowDown");

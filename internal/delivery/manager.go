@@ -237,6 +237,8 @@ func (m *Manager) View(id string) (distribution.Job, error) {
 	return j, nil
 }
 func (m *Manager) Cleanup() error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	jobs, err := m.store.AllJobs()
 	if err != nil {
 		return err
@@ -245,8 +247,6 @@ func (m *Manager) Cleanup() error {
 	for _, j := range jobs {
 		known[j.ID] = j
 	}
-	m.mu.Lock()
-	defer m.mu.Unlock()
 	for _, j := range jobs {
 		if j.Status == "preparing" && m.now().Sub(j.CreatedAt) >= 15*time.Minute {
 			if _, err = m.store.FailPreparing(j.ID, "upload_expired"); err != nil {
@@ -256,6 +256,14 @@ func (m *Manager) Cleanup() error {
 			known[j.ID] = j
 		}
 		if !pending(j.Status) {
+			if distribution.HasJobInputs(j) && m.now().Sub(j.UpdatedAt) < 15*time.Minute {
+				continue
+			}
+			if distribution.HasJobInputs(j) {
+				if err = m.store.ClearJobInputs(j.ID); err != nil {
+					return err
+				}
+			}
 			if err = os.RemoveAll(m.inputDir(j.ID)); err != nil {
 				return err
 			}

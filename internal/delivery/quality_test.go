@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 	"watermark-tool/internal/distribution"
 	"watermark-tool/internal/quality"
 )
@@ -111,12 +112,46 @@ func TestQualityMatrixAndGate(t *testing.T) {
 		t.Fatal("partial file", err)
 	}
 	upload(failed)
+	if err = m.Cleanup(); err != nil {
+		t.Fatal(err)
+	} // Fresh terminal retry inputs must survive the periodic cleaner.
 	if _, err = m.Start(j.ID, "admin", true); err != nil {
 		t.Fatal(err)
 	}
 	again := waitJob(t, m, j.ID, "failed")
 	if again.Copies[0].ID != j.Copies[0].ID || again.CreatedAt != j.CreatedAt || again.Attempts != 2 || again.Error != "quality_failed" {
 		t.Fatal("retry snapshot")
+	}
+	// Expire abandoned retry staging without touching the fixed failed result.
+	upload(again)
+	m.Close()
+	m.now = func() time.Time { return time.Now().Add(16 * time.Minute) }
+	if err = m.Cleanup(); err != nil {
+		t.Fatal(err)
+	}
+	expired, e := s.Job(j.ID)
+	if e != nil || distribution.HasJobInputs(expired) || expired.UploadToken == again.UploadToken || expired.Copies[0].Quality == nil {
+		t.Fatal("expired staging", e)
+	}
+	m, err = New(s, slots)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer m.Close()
+	upload(expired)
+	staged, _ := s.Job(j.ID)
+	m.Close()
+	m, err = New(s, slots)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer m.Close()
+	recovered, _ := s.Job(j.ID)
+	if distribution.HasJobInputs(recovered) || recovered.UploadToken == staged.UploadToken || recovered.Copies[0].ID != j.Copies[0].ID {
+		t.Fatal("startup staging recovery")
+	}
+	if _, e = os.Stat(m.inputDir(j.ID)); !os.IsNotExist(e) {
+		t.Fatal("staged files survived restart", e)
 	}
 	old, _ := s.Job(done.ID)
 	if !old.Generated {

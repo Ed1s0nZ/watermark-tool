@@ -307,6 +307,7 @@ func (s *Store) RecoverJobs() error {
 	}
 	next := s.jobsSnapshot()
 	events := []AuditEvent{}
+	changed := false
 	for i, j := range next {
 		if pendingJob(j.Status) {
 			if err := rotateUpload(&next[i]); err != nil {
@@ -323,9 +324,21 @@ func (s *Store) RecoverJobs() error {
 				next[i].Copies[n].Uploaded = false
 			}
 			events = append(events, NewEvent("system", "task.recover", j.ID, "interrupted", "interrupted"))
+		} else if HasJobInputs(j) {
+			if err := rotateUpload(&next[i]); err != nil {
+				return err
+			}
+			changed = true
+			next[i].UpdatedAt = time.Now().UTC()
+			for n := range next[i].Sources {
+				next[i].Sources[n].Uploaded = false
+			}
+			for n := range next[i].Copies {
+				next[i].Copies[n].Uploaded = false
+			}
 		}
 	}
-	if len(events) == 0 {
+	if len(events) == 0 && !changed {
 		return nil
 	}
 	return s.commitPlatform(s.data, s.keys, next, events...)
@@ -341,6 +354,16 @@ func (s *Store) ClearJobInputs(id string) error {
 		return ErrMissing
 	}
 	next := s.jobsSnapshot()
+	if pendingJob(next[i].Status) {
+		return ErrJobState
+	}
+	if !HasJobInputs(next[i]) {
+		return nil
+	}
+	if err := rotateUpload(&next[i]); err != nil {
+		return err
+	}
+	next[i].UpdatedAt = time.Now().UTC()
 	for n := range next[i].Sources {
 		next[i].Sources[n].Uploaded = false
 	}
@@ -412,4 +435,19 @@ func rotateUpload(j *Job) error {
 	}
 	j.UploadToken = token
 	return nil
+}
+
+// HasJobInputs distinguishes fresh retry staging from already-clean terminal tasks.
+func HasJobInputs(j Job) bool {
+	for _, s := range j.Sources {
+		if s.Uploaded {
+			return true
+		}
+	}
+	for _, c := range j.Copies {
+		if c.Uploaded {
+			return true
+		}
+	}
+	return false
 }
