@@ -265,6 +265,7 @@ export function TraceBatchPage() {
           <Space wrap>
             <Button
               type="primary"
+              aria-label={t.run}
               loading={busy}
               disabled={!files.length}
               onClick={() => void run()}

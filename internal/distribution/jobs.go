@@ -104,6 +104,10 @@ func (s *Store) NewJob(request, actor string, sources []JobSource, recipients []
 		text = ""
 		style = nil
 	}
+	fingerprintPolicy := quality.Clone(policy)
+	if fingerprintPolicy != nil && fingerprintPolicy.MinimumPSNR == nil {
+		fingerprintPolicy = nil
+	}
 	raw, err := json.Marshal(struct {
 		Actor      string
 		Sources    []JobSource
@@ -111,7 +115,7 @@ func (s *Store) NewJob(request, actor string, sources []JobSource, recipients []
 		Mode, Text string
 		Style      map[string]any
 		Quality    *quality.Policy `json:",omitempty"`
-	}{actor, clean, recipients, mode, text, style, policy})
+	}{actor, clean, recipients, mode, text, style, fingerprintPolicy})
 	if err != nil {
 		return Job{}, ErrRecipients
 	}

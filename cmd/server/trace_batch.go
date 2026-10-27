@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/gin-gonic/gin"
+	"mime/multipart"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -88,19 +89,7 @@ func registerBatchTrace(api *gin.RouterGroup, store *distribution.Store, tempDir
 		}
 		form := c.Request.MultipartForm
 		files := form.File["files"]
-		if len(files) < 1 || len(files) > 20 || len(form.File) != 1 || len(form.Value) != 0 {
-			c.JSON(422, gin.H{"code": "trace_limit"})
-			return
-		}
-		var total int64
-		for _, f := range files {
-			total += f.Size
-			if f.Size > 50<<20 || len(f.Filename) > 255 {
-				c.JSON(422, gin.H{"code": "trace_limit"})
-				return
-			}
-		}
-		if total > 128<<20 {
+		if len(form.File) != 1 || len(form.Value) != 0 || !validTraceFiles(files) {
 			c.JSON(422, gin.H{"code": "trace_limit"})
 			return
 		}
@@ -181,4 +170,18 @@ func registerBatchTrace(api *gin.RouterGroup, store *distribution.Store, tempDir
 			c.Set("audit_outcome", outcome)
 		}
 	})
+}
+
+func validTraceFiles(files []*multipart.FileHeader) bool {
+	if len(files) < 1 || len(files) > 20 {
+		return false
+	}
+	var total int64
+	for _, f := range files {
+		if f == nil || f.Size < 0 || f.Size > 50<<20 || len(f.Filename) > 255 {
+			return false
+		}
+		total += f.Size
+	}
+	return total <= 128<<20
 }

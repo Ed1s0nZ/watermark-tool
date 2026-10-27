@@ -3,8 +3,10 @@ package main
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	"encoding/json"
 	"github.com/gin-gonic/gin"
+	"hash/crc32"
 	"image/png"
 	"mime/multipart"
 	"net/http"
@@ -186,9 +188,53 @@ func TestTraceBatchAndDualQualityHTTP(t *testing.T) {
 	if !hasCancel {
 		t.Fatal("cancel audit")
 	}
+	// Encoded dimensions are rejected before allocating pixels, even inside a batch.
+	oversized := append([]byte(nil), original...)
+	binary.BigEndian.PutUint32(oversized[16:20], 8_000_001)
+	binary.BigEndian.PutUint32(oversized[20:24], 1)
+	binary.BigEndian.PutUint32(oversized[29:33], crc32.ChecksumIEEE(oversized[12:29]))
+	w = send(makeRequest("trace-batch", [][]byte{oversized}, "", true))
+	if w.Code != 200 || !strings.Contains(w.Body.String(), `"error_code":"blind_image"`) {
+		t.Fatal("pixel limit", w.Code, w.Body.String())
+	}
+	blindSlots <- struct{}{}
+	blindSlots <- struct{}{}
+	w = send(makeRequest("trace-batch", [][]byte{original}, "", true))
+	<-blindSlots
+	<-blindSlots
+	if w.Code != 429 {
+		t.Fatal("busy slots", w.Code)
+	}
 	// Request temporary files and processing resources are gone; another batch can run.
 	entries, _ := os.ReadDir(temp)
 	if len(entries) != 0 {
 		t.Fatal("temp leak", entries)
+	}
+}
+
+func TestTraceFileLimits(t *testing.T) {
+	file := func(n int64) *multipart.FileHeader { return &multipart.FileHeader{Filename: "image.png", Size: n} }
+	for _, test := range []struct {
+		files []*multipart.FileHeader
+		valid bool
+	}{
+		{nil, false}, {[]*multipart.FileHeader{file(50 << 20)}, true}, {[]*multipart.FileHeader{file((50 << 20) + 1)}, false},
+		{[]*multipart.FileHeader{file(50 << 20), file(50 << 20), file(28 << 20)}, true},
+		{[]*multipart.FileHeader{file(50 << 20), file(50 << 20), file((28 << 20) + 1)}, false},
+	} {
+		if validTraceFiles(test.files) != test.valid {
+			t.Fatal(test)
+		}
+	}
+	files := []*multipart.FileHeader{}
+	for i := 0; i < 20; i++ {
+		files = append(files, file(1))
+	}
+	if !validTraceFiles(files) {
+		t.Fatal("20")
+	}
+	files = append(files, file(1))
+	if validTraceFiles(files) {
+		t.Fatal("21")
 	}
 }

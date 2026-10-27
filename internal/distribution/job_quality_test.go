@@ -61,6 +61,10 @@ func TestQualityPolicyFingerprintAndOldJobCompatibility(t *testing.T) {
 	if e != nil || repeated.ID != old.ID {
 		t.Fatal("old idempotency", e)
 	}
+	defaultRepeated, e := s.NewJob("old-no-policy-request", "admin", sources, recipients, "blind", "", nil, quality.Policy{})
+	if e != nil || defaultRepeated.ID != old.ID {
+		t.Fatal("equivalent display-only policy conflicts with historical default", e)
+	}
 	gate := 35.0
 	j, err := s.NewJob("new-policy-request-1", "admin", sources, recipients, "blind", "", nil, quality.Policy{MinimumPSNR: &gate})
 	if err != nil {
