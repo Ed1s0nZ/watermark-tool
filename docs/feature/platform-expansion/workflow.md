@@ -44,3 +44,9 @@ main；每阶段文档提交推送。完整能力与验收见requirements.md，�
 证据：生产构建通过；go test -race ./...通过，随后涉及包最新变更race复验通过；go vet ./...通过。完整13项浏览器全部通过（新增workspaces，旧12项保留），新增用例真实建账号/团队、按团队生成ZIP与记录、跨团队拒绝、降级/停用/直链回退、素材清理和私有样式隔离，中英暗色手机无横向页面溢出。初次旧用例reload后过早找高级字段，等待可见工作区后再展开修复，未强制点击隐藏控件。
 
 批次A达到独立团队基础的验收，整体目标仍active；B的通讯录/共享策略/审批、C～G尚未完成。下一步按b-collaboration-contract.md实施，不以本批通过代替完整清单完成。
+
+## B0 — 团队代理与访问日志加固
+
+- 内层团队Gin引擎显式禁用可信代理头，与外层服务保持一致。实际路由连续请求验证：轮换伪造X-Forwarded-For不能绕过同一来源的10次/分钟限流。
+- 访问日志只记录匹配路由模式，未匹配路径记为`<unmatched>`；测试验证账号标识和未知路径中的秘密不写入日志。
+- 验证：`go test -race ./cmd/server -run 'TestTeamEngineIgnores|TestRequestLogs|TestRecipientHTTP' -count=1`通过。该记录仅标记安全切片，不标B或完整目标完成。

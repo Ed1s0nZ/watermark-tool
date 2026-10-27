@@ -116,6 +116,7 @@ func (r *teamEngines) get(actor, team string) (*scopedEngine, error) {
 		scoped.owned = true
 	}
 	engine := gin.New()
+	engine.SetTrustedProxies(nil)
 	engine.Use(gin.Recovery())
 	api := engine.Group("/api", func(c *gin.Context) {
 		who, ok := c.Request.Context().Value(principalKey{}).(enginePrincipal)

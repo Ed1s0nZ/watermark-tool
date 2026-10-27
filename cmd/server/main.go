@@ -56,7 +56,10 @@ func LoggingMiddleware() gin.HandlerFunc {
 		// 记录请求信息
 		clientIP := c.ClientIP()
 		method := c.Request.Method
-		path := c.Request.URL.Path
+		path := c.FullPath()
+		if path == "" {
+			path = "<unmatched>"
+		}
 		statusCode := c.Writer.Status()
 		latency := time.Since(startTime)
 
