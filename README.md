@@ -392,7 +392,7 @@ go run ./cmd/blind-bench -dir /tmp/watermark-go-bench
 
 ### 构建与启动（平台版）
 
-需要 Go 1.24.4+、Node.js 20.19+ 或 22.12+、npm。首次启动前必须构建前端：
+需要 Go 1.26.0+、Node.js 20.19+ 或 22.12+、npm。首次启动前必须构建前端：
 
 ```bash
 cd web/frontend

@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "algorithm": "pdf-page-v1",
+  "source_sha256": "284bfcbbf897b3e593106ab0450202c44c48cbfd6c995d76b875c87ea53e57c3",
+  "output_sha256": "3bf1218094865086bad9155f369ecb97a0ccbb0ad704e9e5c17fcd3d21c90df9",
+  "pages": [
+    {
+      "page": 1,
+      "rendered_pixels_equal": true,
+      "decoded_content_equal": true,
+      "marker": "unmarked"
+    },
+    {
+      "page": 2,
+      "rendered_pixels_equal": true,
+      "decoded_content_equal": true,
+      "marker": "verified_independently",
+      "text": "Page 2/3"
+    },
+    {
+      "page": 3,
+      "rendered_pixels_equal": true,
+      "decoded_content_equal": true,
+      "marker": "verified_independently",
+      "text": "第三页独立标识"
+    }
+  ],
+  "canonical_field_preserved": true,
+  "widget_values_match": true,
+  "widget_normal_appearance_nonempty": true,
+  "widget_count": 1
+}
