@@ -82,3 +82,7 @@ Go1.26同包race/vet通过，覆盖真实归档与目录、路径/链接/特殊�
 完成 Word/Excel/PPT/ODT 统一有版本 XML 注释，原 ZIP 成员原始复制、特殊文字/真实时间/最终重读核验，内部 ZIP 有界预检/声明签名拒绝；修复 RTF 非法 AES 密钥、正则和尾部 NUL。旧无时间文件返回空，Excel 不输出水印调试日志。兼容元数据不承诺密钥认证/保密；详见 c3-compatibility-verification.md 和 README。
 
 Go1.26 所涉 service/watermark race、服务端完整 race（90.927s）、vet 通过，原平台两个真实浏览器用例通过（29.1s）。这只是 C 的处理器前置修复，目录任务/API/UI仍未交付；接着实现逐文件执行/最终验证和持久任务。
+
+### C4 统一逐文件执行器
+
+fileprocess接入实际Go图片/PDF/五种Office兼容格式，固定服务端时间、输入摘要复核、最终成品真实提取/质量/SHA、私有临时文件与独占非覆盖提交、执行前输出重名规划。完整应用库夹具与独立重新打开验证通过，详见c4-file-executor-verification.md。Go1.26 fileprocess/filebundle race及vet通过。接下来接持久任务/审批桥接/API/UI，未把执行器完成等同C完成。

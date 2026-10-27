@@ -1,0 +1,37 @@
+{
+  "scope": "synthetic application-library fixtures; independent read and original package members; no desktop application rendering claim",
+  "results": [
+    {
+      "format": "docx",
+      "changed_parts": [
+        "docProps/core.xml"
+      ],
+      "independent_library_read": true,
+      "output_sha256": "c210da09fdf521e0fdd57f9241b53d4bd99922245b38d8cffa62ea44ddcad008"
+    },
+    {
+      "format": "pptx",
+      "changed_parts": [
+        "docProps/core.xml"
+      ],
+      "independent_library_read": true,
+      "output_sha256": "1c3f853a5dd1bf1b73d3cc097e336ad33bf613efaede5344a2f7c2766c775659"
+    },
+    {
+      "format": "xlsx",
+      "changed_parts": [
+        "docProps/core.xml"
+      ],
+      "independent_library_read": true,
+      "output_sha256": "076d21f48193b73cd7f75d36b8a64929a75535501926888eb1014902d7ed330c"
+    },
+    {
+      "format": "odt",
+      "changed_parts": [
+        "meta.xml"
+      ],
+      "independent_library_read": null,
+      "output_sha256": "37b232f73c8ad745588729fed2192af18b48882ff1c6742b212c55b3488d86d7"
+    }
+  ]
+}

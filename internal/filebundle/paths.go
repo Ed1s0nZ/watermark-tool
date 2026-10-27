@@ -19,7 +19,7 @@ func SafePath(name string) (string, error) {
 		return "", ErrPath
 	}
 	for _, part := range parts {
-		if part == "" || part == "." || part == ".." || strings.HasSuffix(part, ".") || strings.HasSuffix(part, " ") {
+		if part == "" || len(part) > 255 || part == "." || part == ".." || strings.HasSuffix(part, ".") || strings.HasSuffix(part, " ") {
 			return "", ErrPath
 		}
 		for _, r := range part {
