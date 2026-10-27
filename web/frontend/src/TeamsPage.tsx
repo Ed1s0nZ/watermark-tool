@@ -1,3 +1,4 @@
+import { useApprovalText } from "./approvalText";
 import { useState } from "react";
 import {
   Alert,
@@ -21,6 +22,7 @@ import { AccountsPanel } from "./AccountsPanel";
 import { useCollaborationText } from "./collaborationText";
 import { useWorkspace, type Team, type TeamRole } from "./workspaceContext";
 export function TeamsPage() {
+  const approvalText = useApprovalText();
   const t = useCollaborationText(),
     context = useWorkspace();
   const [form] = Form.useForm();
@@ -167,6 +169,33 @@ export function TeamsPage() {
           </Button>
         )}
       </Card>
+      {team && team.id !== "personal" && (
+        <Card title={approvalText.setting}>
+          <Typography.Paragraph type="secondary">
+            {approvalText.settingHint}
+          </Typography.Paragraph>
+          <Switch
+            aria-label={approvalText.toggle}
+            checked={team.require_approval}
+            disabled={!manage || action.busy}
+            onChange={(required) =>
+              void action.run(async (signal) => {
+                await api(`/workspace/teams/${team.id}/approval-settings`, {
+                  method: "PUT",
+                  signal,
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    revision: team.revision,
+                    require_approval: required,
+                  }),
+                });
+                if (!signal.aborted) await context.refresh();
+                return null;
+              })
+            }
+          />
+        </Card>
+      )}
       <Card title={t.members}>
         {team?.id === "personal" ? (
           <Alert message={t.personalHint} />

@@ -1,5 +1,6 @@
 import { useText, zh } from "./i18n";
 const cn = {
+  approval_required: "审批已失效或被撤回，请重新提交审批。",
   expiresAt: "下载有效期至",
   importCSV: "导入任务名单",
   restore: "载入任务参数",
@@ -92,6 +93,7 @@ const cn = {
   historyHint: "列表自动刷新不追加业务审计；选择任务后查看详细状态。",
 };
 const en: typeof cn = {
+  approval_required: "Approval is no longer valid. Request approval again.",
   expiresAt: "Download available until",
   importCSV: "Import task recipients",
   restore: "Load task parameters",

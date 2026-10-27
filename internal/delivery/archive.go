@@ -54,6 +54,9 @@ func (m *Manager) archive(ctx context.Context, j distribution.Job, key []byte) (
 	var original image.Image
 	lastSource := ""
 	for n, c := range j.Copies {
+		if err = m.checkAuthorization(j); err != nil {
+			return "", 0, err
+		}
 		if err = ctx.Err(); err != nil {
 			return "", 0, err
 		}
@@ -145,6 +148,9 @@ func (m *Manager) archive(ctx context.Context, j distribution.Job, key []byte) (
 	}
 	closed = true
 	if err = ctx.Err(); err != nil {
+		return "", 0, err
+	}
+	if err = m.checkAuthorization(j); err != nil {
 		return "", 0, err
 	}
 	if err = os.Rename(path, m.archivePath(j.ID)); err != nil {

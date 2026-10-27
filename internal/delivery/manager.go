@@ -14,10 +14,16 @@ import (
 )
 
 var ErrExpired = errors.New("archive_expired")
+var ErrGate = errors.New("approval_required")
 var ErrArchive = errors.New("archive_unavailable")
 
-type Options struct{ ArchiveTTL time.Duration }
+type Options struct {
+	ArchiveTTL time.Duration
+	// Authorize checks current authority at execution and delivery boundaries.
+	Authorize func(distribution.Job) error
+}
 type Manager struct {
+	authorize    func(distribution.Job) error
 	archiveLimit int64
 	cleanupFault bool
 	ttl          time.Duration
@@ -68,6 +74,9 @@ func New(store *distribution.Store, slots chan struct{}, options ...Options) (*M
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	m := &Manager{archiveLimit: distribution.MaxArchiveBytes, ttl: ttl, store: store, root: root, slots: slots, ctx: ctx, stop: cancel, done: make(chan struct{}), cancels: map[string]context.CancelFunc{}, bad: map[string]bool{}, now: time.Now}
+	if len(options) > 0 {
+		m.authorize = options[0].Authorize
+	}
 	if err := m.Cleanup(); err != nil {
 		cancel()
 		return nil, err
@@ -143,7 +152,18 @@ func (m *Manager) dispatch(id string) {
 			m.mu.Unlock()
 			<-m.slots
 		}()
-		hash, size, err := m.archive(ctx, job, key)
+		var hash string
+		var size int64
+		err := m.checkAuthorization(job)
+		if err == nil {
+			hash, size, err = m.archive(ctx, job, key)
+		}
+		if err == nil {
+			err = m.checkAuthorization(job)
+			if err != nil {
+				m.eraseDeniedArchive(id)
+			}
+		}
 		status, code := "completed", ""
 		if err != nil {
 			status = "failed"
@@ -163,6 +183,8 @@ func (m *Manager) dispatch(id string) {
 }
 func errorCode(err error) string {
 	switch {
+	case errors.Is(err, ErrGate):
+		return "approval_required"
 	case errors.Is(err, output.ErrVerification):
 		return "output_verification"
 	case errors.Is(err, quality.ErrThreshold):
@@ -183,6 +205,9 @@ func (m *Manager) Start(id, actor string, retry bool) (distribution.Job, error) 
 	}
 	j, err := m.store.Job(id)
 	if err != nil {
+		return j, err
+	}
+	if err = m.checkAuthorization(j); err != nil {
 		return j, err
 	}
 	if j.Status == "queued" || j.Status == "processing" || j.Status == "cancelling" {
@@ -304,3 +329,15 @@ func pending(status string) bool {
 }
 
 func (m *Manager) Degraded() bool { m.mu.Lock(); defer m.mu.Unlock(); return m.cleanupFault }
+
+func (m *Manager) checkAuthorization(j distribution.Job) error {
+	if m.authorize != nil {
+		if err := m.authorize(j); err != nil {
+			if errors.Is(err, distribution.ErrStore) {
+				return err
+			}
+			return ErrGate
+		}
+	}
+	return nil
+}

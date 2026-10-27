@@ -38,6 +38,8 @@ func openPlatform() (*distribution.Store, error) {
 func platformError(c *gin.Context, err error) {
 	status, code := 500, "requestError"
 	switch {
+	case errors.Is(err, delivery.ErrGate):
+		status, code = 409, "approval_required"
 	case errors.Is(err, output.ErrOptions):
 		status, code = 422, "output_options"
 	case errors.Is(err, output.ErrVerification):

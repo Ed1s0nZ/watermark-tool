@@ -25,6 +25,8 @@ test("two-level navigation, history, collapsed flyout and independent mobile dra
         ["多图分发任务", "jobs"],
         ["批量副本", "batches"],
         ["分发记录", "records"],
+        ["接收人库", "recipients"],
+        ["审批中心", "approvals"],
       ],
     ],
     [
@@ -53,7 +55,7 @@ test("two-level navigation, history, collapsed flyout and independent mobile dra
       await expect(nav.locator(".ant-menu-item-selected")).toHaveText(label);
     }
   }
-  await expect(nav.locator(".ant-menu-item")).toHaveCount(13);
+  await expect(nav.locator(".ant-menu-item")).toHaveCount(15);
   await expect(
     page.getByRole("button", { name: "折叠侧边栏" }),
   ).toBeInViewport();

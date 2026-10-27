@@ -1,6 +1,6 @@
 export const navigationGroups = [
   { key: "watermark", pages: ["add", "dual"] },
-  { key: "distribution", pages: ["jobs", "batches", "records"] },
+  { key: "distribution", pages: ["jobs", "batches", "records", "recipients", "approvals"] },
   { key: "analysis", pages: ["extract", "trace", "lab"] },
   { key: "system", pages: ["keys", "audit", "teams", "settings"] },
 ] as const;

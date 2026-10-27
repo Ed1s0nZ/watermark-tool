@@ -320,6 +320,7 @@ export async function uploadAndStart(
   job: DeliveryJob,
   signal: AbortSignal,
   update: (job: DeliveryJob, done: number, total: number) => void,
+  start = true,
 ): Promise<DeliveryJob> {
   if (!matchesPlan(plan, job)) throw new APIError(409, "request_conflict");
   let current = job;
@@ -355,6 +356,7 @@ export async function uploadAndStart(
       update(current, ++done, total);
     }
   alive(signal);
+  if (!start) return current;
   return post<DeliveryJob>(
     "/jobs/" + job.id + (job.status === "preparing" ? "/start" : "/retry"),
     {},

@@ -1,3 +1,7 @@
+import { useWorkspace } from "./workspaceContext";
+import { ApprovalJobControls } from "./ApprovalJobControls";
+import { useApprovalText } from "./approvalText";
+import { RecipientPicker } from "./RecipientPicker";
 import { scopedBrowserKey } from "./api";
 import {
   AdvancedSettings,
@@ -61,6 +65,8 @@ export function JobsPage() {
   const t = useJobText();
   const ui = useWorkspaceText();
   const [files, setFiles] = useState<File[]>([]);
+  const workspace = useWorkspace(),
+    approvalText = useApprovalText();
   const [csv, setCSV] = useState("recipient_id,name\n001,Alice\n002,张三");
   const [mode, setMode] = useState<"blind" | "dual">("blind");
   const [text, setText] = useState("内部资料 · {name} · {recipient_id}");
@@ -218,6 +224,7 @@ export function JobsPage() {
           setProgress(`${t.uploading} ${done}/${total}`);
         }
       },
+      !workspace.team?.require_approval,
     );
     if (!signal.aborted) {
       update(job);
@@ -254,6 +261,13 @@ export function JobsPage() {
                   />
                 </Form.Item>
                 <Form.Item label={t.csv}>
+                  <RecipientPicker
+                    disabled={busy}
+                    onApply={(value) => {
+                      change();
+                      setCSV(value);
+                    }}
+                  />
                   <Input.TextArea
                     aria-label={t.csv}
                     value={csv}
@@ -488,12 +502,18 @@ export function JobsPage() {
               <Space wrap>
                 <Button
                   type="primary"
-                  aria-label={t.create}
+                  aria-label={
+                    workspace.team?.require_approval
+                      ? approvalText.upload
+                      : t.create
+                  }
                   disabled={!plan.value || plan.busy}
                   loading={action.busy}
                   onClick={() => void action.run((signal) => transfer(signal))}
                 >
-                  {t.create}
+                  {workspace.team?.require_approval
+                    ? approvalText.upload
+                    : t.create}
                 </Button>
                 {busy && (
                   <Button
@@ -511,6 +531,9 @@ export function JobsPage() {
         }
       />
       <ErrorNotice error={pollError} />
+      {task && workspace.team?.require_approval && (
+        <ApprovalJobControls job={task} onUpdate={update} />
+      )}
       {task ? (
         <JobDetails
           job={task}

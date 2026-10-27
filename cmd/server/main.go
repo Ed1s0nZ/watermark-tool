@@ -68,9 +68,10 @@ func LoggingMiddleware() gin.HandlerFunc {
 }
 
 // RateLimitMiddleware 请求频率限制中间件
-func RateLimitMiddleware() gin.HandlerFunc {
+func RateLimitMiddleware() gin.HandlerFunc { return rateLimitBucket("", MaxRequestsPerMinute) }
+func rateLimitBucket(prefix string, limit int) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		clientIP := c.ClientIP()
+		clientIP := prefix + c.ClientIP()
 
 		clientRequestsMu.Lock()
 		// 获取或创建客户端请求记录
@@ -90,7 +91,12 @@ func RateLimitMiddleware() gin.HandlerFunc {
 		}
 
 		// 检查请求频率
-		if client.Count >= MaxRequestsPerMinute {
+		if client.Count >= limit {
+			remaining := int(time.Until(client.LastReset.Add(time.Minute)).Seconds()) + 1
+			if remaining < 1 {
+				remaining = 1
+			}
+			c.Header("Retry-After", strconv.Itoa(remaining))
 			clientRequestsMu.Unlock()
 			c.JSON(http.StatusTooManyRequests, gin.H{
 				"error": "请求频率过高，请稍后再试",

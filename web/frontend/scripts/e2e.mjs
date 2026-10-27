@@ -13,6 +13,9 @@ const suites =
     ? [process.argv.slice(2)]
     : [
         ["workspaces.spec.ts"],
+        ["recipients.spec.ts"],
+        ["shared-policies.spec.ts"],
+        ["approvals.spec.ts"],
         ["form-workspace.spec.ts"],
         ["navigation.spec.ts"],
         ["platform.spec.ts"],

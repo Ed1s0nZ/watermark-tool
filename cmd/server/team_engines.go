@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -108,7 +109,15 @@ func (r *teamEngines) get(actor, team string) (*scopedEngine, error) {
 		if err != nil {
 			return nil, err
 		}
-		scoped.manager, err = delivery.New(scoped.store, blindSlots, r.options)
+		options := r.options
+		options.Authorize = func(j distribution.Job) error {
+			err := r.workspace.CheckJobApproval(team, j)
+			if errors.Is(err, workspace.ErrUnavailable) {
+				return distribution.ErrStore
+			}
+			return err
+		}
+		scoped.manager, err = delivery.New(scoped.store, blindSlots, options)
 		if err != nil {
 			scoped.store.Close()
 			return nil, err
@@ -131,6 +140,9 @@ func (r *teamEngines) get(actor, team string) (*scopedEngine, error) {
 		}
 		if err := r.workspace.Authorize(who.Actor, team, permission); err != nil {
 			workspaceError(c, err)
+			return
+		}
+		if !teamApprovalGate(c, r.workspace, who.Actor, team) {
 			return
 		}
 		c.Set("username", who.Actor)

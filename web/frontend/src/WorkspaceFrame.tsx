@@ -144,6 +144,7 @@ export function WorkspaceFrame(
   return (
     <WorkspaceContext.Provider
       value={{
+        username: props.user.username,
         administrator,
         environmentAdmin: session?.environment_admin ?? props.user.username,
         role: administrator

@@ -1,3 +1,4 @@
+import { SharedPolicyControls } from "./SharedPolicyControls";
 import { useEffect, useState } from "react";
 import { Alert, Button, Card, Input, Select, Space, Typography } from "antd";
 import {
@@ -48,113 +49,120 @@ export function PolicyControls({
     }
   }
   return (
-    <Card size="small" title={t.policies}>
-      <Space direction="vertical" style={{ width: "100%" }}>
-        <Typography.Text type="secondary">
-          {t.policyHint} {at.newPolicyHint}
-        </Typography.Text>
-        <Space wrap>
-          <Select
-            aria-label={t.select}
-            placeholder={t.select}
-            value={selected}
+    <Space direction="vertical" style={{ width: "100%" }}>
+      <SharedPolicyControls
+        value={value}
+        onApply={onApply}
+        disabled={disabled}
+      />
+      <Card size="small" title={t.policies}>
+        <Space direction="vertical" style={{ width: "100%" }}>
+          <Typography.Text type="secondary">
+            {t.policyHint} {at.newPolicyHint}
+          </Typography.Text>
+          <Space wrap>
+            <Select
+              aria-label={t.select}
+              placeholder={t.select}
+              value={selected}
+              disabled={disabled}
+              style={{ width: 220 }}
+              onChange={(v) => {
+                setSelected(v);
+                setApplied(false);
+              }}
+              options={all.map((p) => ({ value: p.id, label: p.name }))}
+            />
+            <Button
+              disabled={disabled || !chosen}
+              onClick={() => {
+                if (!chosen) return;
+                const { id, name, ...p } = chosen;
+                onApply(structuredClone(p));
+                setApplied(true);
+              }}
+            >
+              {t.apply}
+            </Button>
+          </Space>
+          <Input
+            aria-label={t.policyName}
+            placeholder={t.policyName}
+            maxLength={40}
+            value={name}
             disabled={disabled}
-            style={{ width: 220 }}
-            onChange={(v) => {
-              setSelected(v);
-              setApplied(false);
-            }}
-            options={all.map((p) => ({ value: p.id, label: p.name }))}
+            onChange={(e) => setName(e.target.value)}
           />
-          <Button
-            disabled={disabled || !chosen}
-            onClick={() => {
-              if (!chosen) return;
-              const { id, name, ...p } = chosen;
-              onApply(structuredClone(p));
-              setApplied(true);
-            }}
-          >
-            {t.apply}
-          </Button>
-        </Space>
-        <Input
-          aria-label={t.policyName}
-          placeholder={t.policyName}
-          maxLength={40}
-          value={name}
-          disabled={disabled}
-          onChange={(e) => setName(e.target.value)}
-        />
-        <Space wrap>
-          <Button
-            disabled={disabled || !name.trim()}
-            onClick={() => {
-              const id = crypto.randomUUID();
-              if (
-                persist([
-                  ...custom,
-                  { ...structuredClone(value), id, name: name.trim() },
-                ])
-              ) {
-                setSelected(id);
-                setName("");
-              }
-            }}
-          >
-            {t.save}
-          </Button>
-          <Button
-            disabled={disabled || !editable}
-            onClick={() =>
-              persist(
-                custom.map((p) =>
-                  p.id === selected
-                    ? { ...structuredClone(value), id: p.id, name: p.name }
-                    : p,
-                ),
-              )
-            }
-          >
-            {t.update}
-          </Button>
-          <Button
-            disabled={disabled || !editable || !name.trim()}
-            onClick={() => {
-              if (
+          <Space wrap>
+            <Button
+              disabled={disabled || !name.trim()}
+              onClick={() => {
+                const id = crypto.randomUUID();
+                if (
+                  persist([
+                    ...custom,
+                    { ...structuredClone(value), id, name: name.trim() },
+                  ])
+                ) {
+                  setSelected(id);
+                  setName("");
+                }
+              }}
+            >
+              {t.save}
+            </Button>
+            <Button
+              disabled={disabled || !editable}
+              onClick={() =>
                 persist(
                   custom.map((p) =>
-                    p.id === selected ? { ...p, name: name.trim() } : p,
+                    p.id === selected
+                      ? { ...structuredClone(value), id: p.id, name: p.name }
+                      : p,
                   ),
                 )
-              )
-                setName("");
-            }}
-          >
-            {t.rename}
-          </Button>
-          <Button
-            disabled={disabled || !editable}
-            onClick={() => {
-              if (persist(custom.filter((p) => p.id !== selected)))
-                setSelected(undefined);
-            }}
-          >
-            {t.remove}
-          </Button>
-          <Button
-            disabled={disabled}
-            onClick={() => {
-              setSelected(defaults[0].id);
-              setApplied(false);
-            }}
-          >
-            {t.restore}
-          </Button>
+              }
+            >
+              {t.update}
+            </Button>
+            <Button
+              disabled={disabled || !editable || !name.trim()}
+              onClick={() => {
+                if (
+                  persist(
+                    custom.map((p) =>
+                      p.id === selected ? { ...p, name: name.trim() } : p,
+                    ),
+                  )
+                )
+                  setName("");
+              }}
+            >
+              {t.rename}
+            </Button>
+            <Button
+              disabled={disabled || !editable}
+              onClick={() => {
+                if (persist(custom.filter((p) => p.id !== selected)))
+                  setSelected(undefined);
+              }}
+            >
+              {t.remove}
+            </Button>
+            <Button
+              disabled={disabled}
+              onClick={() => {
+                setSelected(defaults[0].id);
+                setApplied(false);
+              }}
+            >
+              {t.restore}
+            </Button>
+          </Space>
+          {error && <Alert role="alert" type="error" message={t.storage} />}{" "}
+          {applied && <Alert type="info" message={t.applied} />}
         </Space>
-        {error && <Alert role="alert" type="error" message={t.storage} />}{" "}
-        {applied && <Alert type="info" message={t.applied} />}
-      </Space>
-    </Card>
+      </Card>
+    </Space>
   );
 }

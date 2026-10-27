@@ -1,7 +1,7 @@
 import { expect, type Page } from "@playwright/test";
 const groups: Record<string, string[]> = {
   水印制作: ["添加水印", "双水印模板"],
-  分发管理: ["多图分发任务", "批量副本", "分发记录"],
+  分发管理: ["多图分发任务", "批量副本", "分发记录", "接收人库", "审批中心"],
   验证分析: ["提取水印", "批量溯源", "效果实验室"],
   系统管理: ["密钥版本", "操作审计", "团队与成员", "设置"],
   "Watermark creation": ["Add watermark", "Dual watermark templates"],
@@ -9,6 +9,8 @@ const groups: Record<string, string[]> = {
     "Multi-image delivery",
     "Batch copies",
     "Distribution records",
+    "Recipients",
+    "Approvals",
   ],
   Verification: ["Extract watermark", "Batch tracing", "Effect laboratory"],
   "System management": [

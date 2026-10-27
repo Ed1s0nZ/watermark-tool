@@ -223,6 +223,9 @@ func (m *Manager) OpenArchive(id string) (*os.File, distribution.Job, error) {
 	if err != nil {
 		return nil, j, err
 	}
+	if err = m.checkAuthorization(j); err != nil {
+		return nil, j, err
+	}
 	if !j.Generated {
 		return nil, j, distribution.ErrJobState
 	}

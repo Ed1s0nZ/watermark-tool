@@ -1,0 +1,38 @@
+import { useText, zh } from "./i18n";
+const cn = {
+  title: "团队共享策略",
+  hint: "保存当前配置为新草稿版本，发布后团队成员可使用。回退仅切换发布版本，保留历史。素材和名单不保存，应用后须重新预览。单图页仅应用样式、布局、输出与质量；模式和接收人模板在多图任务中应用。",
+  select: "选择共享策略",
+  version: "策略版本",
+  name: "共享策略名称",
+  create: "保存为团队策略",
+  append: "追加当前配置",
+  publish: "发布所选版本",
+  apply: "应用所选版本",
+  refresh: "刷新共享策略",
+  draft: "草稿",
+  published: "已发布",
+  success: "操作成功",
+  applied: "已应用，请重新预览并核对素材。",
+  confirm: "确认发布所选版本？团队成员随后将使用此版本。",
+  cancel: "取消",
+};
+const en: typeof cn = {
+  title: "Team policies",
+  hint: "Save the current settings as a new draft version and publish for team use. Rollback changes the published pointer and preserves history. Files and recipients are excluded; preview again after applying. Single-image pages apply appearance, layout, output and quality only. Use multi-image tasks to apply the mode and recipient template.",
+  select: "Select shared policy",
+  version: "Policy version",
+  name: "Shared policy name",
+  create: "Save as team policy",
+  append: "Append current settings",
+  publish: "Publish selected version",
+  apply: "Apply selected version",
+  refresh: "Refresh team policies",
+  draft: "Draft",
+  published: "Published",
+  success: "Completed",
+  applied: "Applied. Preview again and check files.",
+  confirm: "Publish this version for team members to use?",
+  cancel: "Cancel",
+};
+export const useSharedPolicyText = () => (useText() === zh ? cn : en);

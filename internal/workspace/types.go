@@ -7,6 +7,8 @@ import (
 )
 
 var (
+	ErrApproval    = errors.New("approval_required")
+	ErrDuplicate   = errors.New("workspace_duplicate")
 	ErrUnavailable = errors.New("workspace_unavailable")
 	ErrInvalid     = errors.New("workspace_invalid")
 	ErrConflict    = errors.New("workspace_conflict")
@@ -37,12 +39,13 @@ type userSecret struct {
 	PasswordHash []byte `json:"password_hash"`
 }
 type Team struct {
-	ID        string            `json:"id"`
-	Name      string            `json:"name"`
-	Enabled   bool              `json:"enabled"`
-	Members   map[string]string `json:"members"`
-	Revision  uint64            `json:"revision"`
-	UpdatedAt time.Time         `json:"updated_at"`
+	RequireApproval bool              `json:"require_approval"`
+	ID              string            `json:"id"`
+	Name            string            `json:"name"`
+	Enabled         bool              `json:"enabled"`
+	Members         map[string]string `json:"members"`
+	Revision        uint64            `json:"revision"`
+	UpdatedAt       time.Time         `json:"updated_at"`
 }
 type Event struct {
 	Sequence uint64    `json:"sequence"`
@@ -53,9 +56,12 @@ type Event struct {
 	Target   string    `json:"target"`
 }
 type state struct {
-	Version int                   `json:"version"`
-	Admin   string                `json:"admin"`
-	Users   map[string]userSecret `json:"users"`
-	Teams   map[string]Team       `json:"teams"`
-	Events  []Event               `json:"events"`
+	Approvals map[string]Approval     `json:"approvals,omitempty"`
+	Policies  map[string]SharedPolicy `json:"policies,omitempty"`
+	Contacts  map[string]Contact      `json:"contacts,omitempty"`
+	Version   int                     `json:"version"`
+	Admin     string                  `json:"admin"`
+	Users     map[string]userSecret   `json:"users"`
+	Teams     map[string]Team         `json:"teams"`
+	Events    []Event                 `json:"events"`
 }

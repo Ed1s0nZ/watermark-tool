@@ -49,6 +49,8 @@ export function SidebarNav({
     audit: jt.audit,
     settings: t.settings,
     teams: t.teams,
+    recipients: t.recipients,
+    approvals: t.approvals,
   };
   const groups = {
     watermark: {

@@ -78,7 +78,7 @@ func (s *Store) validate(d state) error {
 		}
 	}
 	personal, ok := d.Teams[PersonalTeam]
-	if !ok || !personal.Enabled || len(personal.Members) != 1 || personal.Members[s.admin] != RoleOwner {
+	if !ok || personal.RequireApproval || !personal.Enabled || len(personal.Members) != 1 || personal.Members[s.admin] != RoleOwner {
 		return ErrInvalid
 	}
 	for id, t := range d.Teams {
@@ -113,5 +113,11 @@ func (s *Store) validate(d state) error {
 			}
 		}
 	}
-	return nil
+	if err := s.validateContacts(d); err != nil {
+		return err
+	}
+	if err := s.validatePolicies(d); err != nil {
+		return err
+	}
+	return s.validateApprovals(d)
 }

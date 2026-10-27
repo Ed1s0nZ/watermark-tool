@@ -35,6 +35,10 @@ func workspaceError(c *gin.Context, err error) {
 		status = 404
 	case errors.Is(err, workspace.ErrInvalid):
 		status = 422
+	case errors.Is(err, workspace.ErrApproval):
+		status = 409
+	case errors.Is(err, workspace.ErrDuplicate):
+		status = 409
 	case errors.Is(err, workspace.ErrConflict):
 		status = 409
 	case errors.Is(err, workspace.ErrLimit):
@@ -45,8 +49,12 @@ func workspaceError(c *gin.Context, err error) {
 	}
 	c.AbortWithStatusJSON(status, gin.H{"code": code})
 }
-func workspaceJSON(c *gin.Context, value any) bool {
-	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 32<<10)
+func workspaceJSON(c *gin.Context, value any, limits ...int64) bool {
+	limit := int64(32 << 10)
+	if len(limits) > 0 {
+		limit = limits[0]
+	}
+	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, limit)
 	decoder := json.NewDecoder(c.Request.Body)
 	decoder.DisallowUnknownFields()
 	if decoder.Decode(value) != nil || decoder.Decode(new(any)) != io.EOF {
@@ -72,6 +80,9 @@ func registerWorkspace(api *gin.RouterGroup, store *workspace.Store, engines *te
 		}
 		c.Next()
 	})
+	registerRecipients(group, store)
+	registerSharedPolicies(group, store)
+	registerApprovals(group, store, engines)
 	group.GET("/me", func(c *gin.Context) {
 		teams, err := store.Teams(c.GetString("username"))
 		if err != nil {

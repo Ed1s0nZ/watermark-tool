@@ -1,3 +1,4 @@
+import { RecipientPicker } from "./RecipientPicker";
 import { FileUpload } from "./FileUpload";
 import { useRef, useState } from "react";
 import { Alert, Button, Card, Form, Input, Space, Typography } from "antd";
@@ -69,6 +70,13 @@ export function BatchPage() {
             />
           </Form.Item>
           <Form.Item label={t.recipientCSV} extra={t.csvHint}>
+            <RecipientPicker
+              disabled={busy}
+              onApply={(value) => {
+                changed();
+                setCSV(value);
+              }}
+            />
             <Input.TextArea
               aria-label={t.recipientCSV}
               rows={7}

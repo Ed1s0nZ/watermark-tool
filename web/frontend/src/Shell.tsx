@@ -1,4 +1,7 @@
+import { ApprovalsPage } from "./ApprovalsPage";
+import { ApprovalRedirect } from "./ApprovalRedirect";
 import { WorkspaceSelector, useWorkspace } from "./workspaceContext";
+import { RecipientsPage } from "./RecipientsPage";
 import { TeamsPage } from "./TeamsPage";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -326,13 +329,21 @@ export function Shell({
               />
             </div>
             <div hidden={page !== "add"}>
-              <WatermarkPage kind="add" types={types} />
+              {workspace.team?.require_approval ? (
+                <ApprovalRedirect onNavigate={navigate} />
+              ) : (
+                <WatermarkPage kind="add" types={types} />
+              )}
             </div>
             <div hidden={page !== "extract"}>
               <WatermarkPage kind="extract" types={types} />
             </div>
             <div hidden={page !== "batches"}>
-              <BatchPage />
+              {workspace.team?.require_approval ? (
+                <ApprovalRedirect onNavigate={navigate} />
+              ) : (
+                <BatchPage />
+              )}
             </div>
             <div hidden={page !== "records"}>
               <RecordsPage active={active && page === "records"} />
@@ -341,11 +352,25 @@ export function Shell({
               <KeysPage active={active && page === "keys"} />
             </div>
             {active && page === "teams" && <TeamsPage />}
+            {active && page === "recipients" && <RecipientsPage />}
+            {active && page === "approvals" && <ApprovalsPage />}
             {active && page === "trace" && <TraceBatchPage />}
             {active && page === "jobs" && <JobsPage />}
             {active && page === "audit" && <AuditPage />}
-            {active && page === "lab" && <LabPage active />}
-            {active && page === "dual" && <DualPage active />}
+            {active &&
+              page === "lab" &&
+              (workspace.team?.require_approval ? (
+                <ApprovalRedirect onNavigate={navigate} />
+              ) : (
+                <LabPage active />
+              ))}
+            {active &&
+              page === "dual" &&
+              (workspace.team?.require_approval ? (
+                <ApprovalRedirect onNavigate={navigate} />
+              ) : (
+                <DualPage active />
+              ))}
             <div hidden={page !== "settings"}>
               <Settings username={user.username} {...preferences} />
             </div>

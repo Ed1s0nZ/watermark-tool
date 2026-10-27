@@ -7,6 +7,7 @@ export interface Team {
   name: string;
   enabled: boolean;
   members: Record<string, TeamRole>;
+  require_approval: boolean;
   revision: number;
   updated_at: string;
 }
@@ -23,6 +24,7 @@ export interface WorkspaceSession {
   teams: Team[];
 }
 export interface WorkspaceContextValue {
+  username: string;
   administrator: boolean;
   environmentAdmin: string;
   role: TeamRole;
@@ -33,6 +35,7 @@ export interface WorkspaceContextValue {
   refresh: () => Promise<void>;
 }
 export const WorkspaceContext = createContext<WorkspaceContextValue>({
+  username: "",
   administrator: true,
   environmentAdmin: "",
   role: "owner",
