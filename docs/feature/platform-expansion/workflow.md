@@ -70,3 +70,9 @@ B已完成，但整体目标仍active。C～G按完整进度板继续，不把�
 新增独立pdfmark核心，真实PDF对象读写、选择/封面/逐页正文、HMAC与源摘要/时间、最终重读逐页核验、非覆盖原子提交；保留表单并拒绝已有签名/加密/资源超量。最低Go升级1.26，解析器固定pdfcpu v0.16.3，许可证入库。源PDF合成，所有处理在副本上。
 
 验收：Go1.26完整race/vet与module verify通过；独立Python HMAC核对最终标识、三页Poppler像素/内容对比一致、canonical字段/widget/外观一致，已打开检查渲染。证据见c1-pdf-verification.md。仅领域核心完成，C的任务/目录/API/UI和审批桥接仍待实施。
+
+### C2 ZIP/目录接收核心
+
+新增filebundle独立清单/路径/central预检/复制与CRC模块，先限EOCD与central元数据再调用标准库zip，随后实际字节与CRC二次约束；逻辑路径不拼接物理存储。保留源Unicode和相对目录，随机私有暂存，失败/取消整体删除，原件/已有目录不动。
+
+Go1.26同包race/vet通过，覆盖真实归档与目录、路径/链接/特殊文件/重复和Unicode冲突、元数据超量/加密/ZIP64/截断、CRC与伪造尺寸回滚。证据见c2-bundle-verification.md。下一步接实际格式处理、资源审批与任务/API/UI，C仍进行中。
